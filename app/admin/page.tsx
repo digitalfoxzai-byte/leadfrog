@@ -139,7 +139,7 @@ export default function AdminPage() {
       <aside className="w-44 shrink-0 flex flex-col bg-[#070D08] border-r border-[#0E1A0F]">
 
         {/* Logo */}
-        <div className="px-5 pt-6 pb-4 flex flex-col items-start gap-2">
+        <div className="px-5 pt-6 pb-4 flex flex-col items-center gap-2">
           <Image src="/logo.png" alt="LeadFrog" width={90} height={36} className="object-contain" />
           <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-[#A3E635]/10 text-[#A3E635]">Admin Panel</span>
         </div>
