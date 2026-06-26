@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Production
+build/
+
+# Env files (keep .env.example)
+.env
+.env.local
+.env.production
+.env.development
+
+# Deploy artifacts
+deploy.zip
+deploy.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PM2
+ecosystem.config.js.bak
