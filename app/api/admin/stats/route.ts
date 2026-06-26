@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const n = (rows: any, key = 'count') => ((rows as Record<string,number>[])[0]?.[key] ?? 0)
 
   const [total, paid, leads, revenue] = await Promise.all([
-    query("SELECT COUNT(*) as count FROM users"),
-    query("SELECT COUNT(*) as count FROM users WHERE plan != 'free'"),
+    query("SELECT COUNT(*) as count FROM users WHERE role != 'admin'"),
+    query("SELECT COUNT(*) as count FROM users WHERE role != 'admin' AND plan != 'free'"),
     query("SELECT COUNT(*) as count FROM leads"),
     query("SELECT COALESCE(SUM(amount),0) as total FROM subscriptions WHERE status='active'"),
   ])

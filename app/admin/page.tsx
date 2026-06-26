@@ -728,11 +728,14 @@ export default function AdminPage() {
                   <div>
                     <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-2">App Password</label>
                     <div className="relative">
-                      <input type={showSmtpPass ? 'text' : 'password'} value={smtp.smtp_pass || ''}
+                      <input
+                        type={showSmtpPass ? 'text' : 'password'}
+                        value={smtp.smtp_pass === '••••••••' ? '' : (smtp.smtp_pass || '')}
                         onChange={e => setSmtp(s => ({ ...s, smtp_pass: e.target.value }))}
-                        placeholder="Gmail App Password"
-                        className="w-full px-3 pr-9 py-2.5 rounded-lg bg-[#070D08] border border-[#122016] text-white text-sm placeholder:text-[#2A3D2A] focus:outline-none focus:border-[#A3E635]/40" />
-                      <button type="button" onClick={() => setShowSmtpPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4B6856] hover:text-[#A3E635] cursor-pointer">
+                        onFocus={() => { if (smtp.smtp_pass === '••••••••') setSmtp(s => ({ ...s, smtp_pass: '' })) }}
+                        placeholder={smtp.smtp_pass === '••••••••' ? '● Saved — enter new password to change' : 'Gmail App Password'}
+                        className="w-full px-3 pr-9 py-2.5 rounded-lg bg-[#070D08] border border-[#122016] text-white text-sm placeholder:text-[#4B6856] focus:outline-none focus:border-[#A3E635]/40" />
+                      <button type="button" onClick={() => setShowSmtpPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4B6856] hover:text-[#A3E635] cursor-pointer z-10">
                         {showSmtpPass ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
                     </div>
