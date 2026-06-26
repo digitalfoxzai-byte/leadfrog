@@ -1,12 +1,13 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   LayoutDashboard, Users, CreditCard, IndianRupee, Settings, LogOut,
   Eye, EyeOff, Save, Trash2, ShieldOff, ShieldCheck,
-  CheckCircle, AlertCircle, Globe, Key, Mail, Lock, User, ChevronDown
+  CheckCircle, AlertCircle, Globe, Key, Mail, Lock, User, ChevronDown,
+  RefreshCw, Search, TrendingUp, Activity
 } from 'lucide-react'
 
 /* ── Types ── */
@@ -50,6 +51,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stat | null>(null)
   const [users, setUsers] = useState<DbUser[]>([])
   const [payData, setPayData] = useState<PayData | null>(null)
+  const [ovSearch, setOvSearch] = useState('')
+  const [ovFilter, setOvFilter] = useState<'all'|'active'|'banned'|'free'>('all')
   const [settings, setSettings] = useState<AdminSettings>({ razorpay_key_id: '', razorpay_key_secret: '', razorpay_mode: 'test', starter_price: '499', pro_price: '999', business_price: '2499', starter_leads: '500', pro_leads: '2000', business_leads: '10000' })
   const [smtp, setSmtp] = useState<Record<string, string>>({ smtp_host: 'smtp.gmail.com', smtp_port: '465', smtp_user: '', smtp_pass: '', smtp_from_name: 'LeadFrog', smtp_admin_email: '' })
   const [account, setAccount] = useState({ currentPassword: '', newEmail: '', newPassword: '' })
@@ -86,10 +89,34 @@ export default function AdminPage() {
   useEffect(() => {
     if (status !== 'authenticated') return
     loadStats()
-    if (tab === 'users') loadUsers()
+    if (tab === 'overview' || tab === 'users') loadUsers()
     if (tab === 'payments') loadPayments()
     if (tab === 'settings') loadSettings()
   }, [tab, status, loadStats, loadUsers, loadPayments, loadSettings])
+
+  const greeting = useMemo(() => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  }, [])
+
+  const today = useMemo(() => new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }), [])
+
+  const ovUsers = useMemo(() => {
+    let list = [...users]
+    if (ovFilter === 'active') list = list.filter(u => u.role !== 'banned' && u.plan !== 'free')
+    else if (ovFilter === 'banned') list = list.filter(u => u.role === 'banned')
+    else if (ovFilter === 'free') list = list.filter(u => u.plan === 'free')
+    if (ovSearch) list = list.filter(u => u.name.toLowerCase().includes(ovSearch.toLowerCase()) || u.email.toLowerCase().includes(ovSearch.toLowerCase()))
+    return list
+  }, [users, ovFilter, ovSearch])
+
+  const planCounts = useMemo(() => {
+    const counts: Record<string,number> = { free:0, starter:0, pro:0, business:0 }
+    users.forEach(u => { counts[u.plan] = (counts[u.plan]||0)+1 })
+    return counts
+  }, [users])
 
   async function userAction(userId: number, action: string, extra?: Record<string, string>) {
     await fetch('/api/admin/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action, ...extra }) })
@@ -167,54 +194,250 @@ export default function AdminPage() {
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Page header */}
-        <div className="px-8 pt-8 pb-5 shrink-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">{PAGE_TITLES[tab].title}</h1>
-              <p className="text-sm text-[#4B6856] mt-1">{PAGE_TITLES[tab].sub}</p>
-            </div>
-            {msg && (
-              <div className={`flex items-center gap-2 text-xs px-4 py-2 rounded-lg ${msg.ok ? 'bg-[#A3E635]/10 text-[#A3E635]' : 'bg-red-500/10 text-red-400'}`}>
-                {msg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />} {msg.text}
+        {/* Page header — hidden on overview (has its own greeting) */}
+        {tab !== 'overview' && (
+          <div className="px-8 pt-8 pb-5 shrink-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">{PAGE_TITLES[tab].title}</h1>
+                <p className="text-sm text-[#4B6856] mt-1">{PAGE_TITLES[tab].sub}</p>
               </div>
-            )}
+              {msg && (
+                <div className={`flex items-center gap-2 text-xs px-4 py-2 rounded-lg ${msg.ok ? 'bg-[#A3E635]/10 text-[#A3E635]' : 'bg-red-500/10 text-red-400'}`}>
+                  {msg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />} {msg.text}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        {tab === 'overview' && msg && (
+          <div className="px-8 pt-4 shrink-0">
+            <div className={`inline-flex items-center gap-2 text-xs px-4 py-2 rounded-lg ${msg.ok ? 'bg-[#A3E635]/10 text-[#A3E635]' : 'bg-red-500/10 text-red-400'}`}>
+              {msg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />} {msg.text}
+            </div>
+          </div>
+        )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-5">
+        <div className="flex-1 overflow-y-auto px-8 pt-6 pb-8 space-y-5">
 
           {/* ── OVERVIEW ── */}
           {tab === 'overview' && (
-            <>
-              <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-5">
+              {/* Greeting */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white">{greeting}, {session?.user?.name?.split(' ')[0] || 'Admin'} 👋</h2>
+                  <p className="text-sm text-[#4B6856] mt-0.5">{today}</p>
+                </div>
+                <button onClick={() => { loadStats(); loadUsers() }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#122016] text-[#5A7A60] hover:text-white text-xs cursor-pointer transition-all">
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              </div>
+
+              {/* Stat cards */}
+              <div className="grid grid-cols-5 gap-3">
                 {[
-                  { label: 'Total Users',  value: stats?.totalUsers  ?? '—', icon: Users,          color: 'text-[#A3E635]' },
-                  { label: 'Paid Users',   value: stats?.activeUsers ?? '—', icon: CreditCard,     color: 'text-blue-400' },
-                  { label: 'Total Leads',  value: stats?.totalLeads  ?? '—', icon: Globe,          color: 'text-purple-400' },
-                  { label: 'Revenue (₹)',  value: stats ? `₹${stats.revenue}` : '—', icon: IndianRupee, color: 'text-amber-400' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className="rounded-xl bg-[#0A110B] border border-[#122016] p-5">
-                    <div className={`mb-3 ${color}`}><Icon size={18} strokeWidth={1.8} /></div>
+                  { label:'Total Users',   sub:'Registered accounts', value: stats?.totalUsers  ?? '—', border:'border-t-red-600',    icon: Users,       iconColor:'text-red-500'    },
+                  { label:'Active',        sub:'Paid subscribers',    value: stats?.activeUsers ?? '—', border:'border-t-[#A3E635]',  icon: CheckCircle, iconColor:'text-[#A3E635]'  },
+                  { label:'Free Plan',     sub:'On free tier',        value: planCounts.free,           border:'border-t-amber-500',  icon: CreditCard,  iconColor:'text-amber-500'  },
+                  { label:'Total Leads',   sub:'Across all users',    value: stats?.totalLeads  ?? '—', border:'border-t-blue-500',   icon: TrendingUp,  iconColor:'text-blue-400'   },
+                  { label:'Revenue',       sub:'From subscriptions',  value: stats ? `₹${stats.revenue}` : '—', border:'border-t-purple-500', icon: IndianRupee, iconColor:'text-purple-400' },
+                ].map(({ label, sub, value, border, icon: Icon, iconColor }) => (
+                  <div key={label} className={`rounded-xl bg-[#0A110B] border border-[#122016] border-t-2 ${border} p-5`}>
+                    <div className={`mb-3 ${iconColor}`}><Icon size={18} strokeWidth={1.8} /></div>
                     <div className="text-3xl font-bold text-white">{value}</div>
-                    <div className="text-xs text-[#4B6856] mt-1.5">{label}</div>
+                    <div className="text-sm font-medium text-white/80 mt-1">{label}</div>
+                    <div className="text-[11px] text-[#4B6856] mt-0.5">{sub}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-xl bg-[#0A110B] border border-[#122016] p-6">
-                <p className="text-sm text-[#4B6856] mb-4">Quick navigation</p>
-                <div className="flex gap-3 flex-wrap">
-                  {NAV.filter(n => n.id !== 'overview').map(({ id, label, icon: Icon }) => (
-                    <button key={id} onClick={() => setTab(id)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#122016] text-[#5A7A60] hover:border-[#A3E635]/30 hover:text-[#A3E635] transition-all cursor-pointer text-sm">
-                      <Icon size={14} /> {label}
-                    </button>
-                  ))}
+              {/* Table + Right panel */}
+              <div className="flex gap-5">
+
+                {/* All Users table */}
+                <div className="flex-1 rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[#122016]">
+                    <div>
+                      <div className="text-white font-semibold text-sm">All Users</div>
+                      <div className="text-[#4B6856] text-[11px] mt-0.5">{ovUsers.length} of {users.length} shown</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B6856]" />
+                        <input value={ovSearch} onChange={e => setOvSearch(e.target.value)} placeholder="Search users..."
+                          className="pl-8 pr-3 py-1.5 rounded-lg bg-[#070D08] border border-[#122016] text-white text-xs w-40 placeholder:text-[#2A3D2A] focus:outline-none focus:border-[#A3E635]/30" />
+                      </div>
+                      {(['all','active','banned','free'] as const).map(f => (
+                        <button key={f} onClick={() => setOvFilter(f)}
+                          className={`px-3 py-1.5 rounded-lg text-xs capitalize cursor-pointer transition-all ${ovFilter===f ? 'bg-[#A3E635] text-black font-semibold' : 'text-[#5A7A60] border border-[#122016] hover:text-white'}`}>
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#0D160E]">
+                        {['User','Plan','Status','Leads','Joined'].map(h => (
+                          <th key={h} className="px-5 py-3 text-left text-[10px] text-[#4B6856] uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ovUsers.slice(0,8).map((u,i) => {
+                        const initials = u.name.split(' ').map((n:string)=>n[0]).join('').toUpperCase().slice(0,2)
+                        const maxLeads = Math.max(...users.map(x=>x.lead_count),1)
+                        const pct = Math.round((u.lead_count/maxLeads)*100)
+                        return (
+                          <tr key={u.id} className={`border-b border-[#0D160E] hover:bg-[#0D160E]/60 transition-colors ${i%2===1?'bg-[#070D08]/40':''}`}>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-[#1A2E10] flex items-center justify-center text-[#A3E635] text-[11px] font-bold shrink-0">{initials}</div>
+                                <div>
+                                  <div className="text-white text-xs font-medium">{u.name}</div>
+                                  <div className="text-[#4B6856] text-[11px]">{u.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${PLAN_BADGE[u.plan]||PLAN_BADGE.free}`}>
+                                {u.plan.charAt(0).toUpperCase()+u.plan.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <span className={`flex items-center gap-1.5 text-[11px] font-medium ${STATUS_BADGE[u.role]||STATUS_BADGE.user}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${u.role==='banned'?'bg-red-400':u.role==='admin'?'bg-amber-400':'bg-[#A3E635]'}`}/>
+                                {u.role==='user'?'Active':u.role.charAt(0).toUpperCase()+u.role.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-xs w-6 text-right">{u.lead_count}</span>
+                                <div className="w-20 h-1.5 rounded-full bg-[#122016] overflow-hidden">
+                                  <div className="h-full rounded-full bg-[#A3E635]" style={{width:`${pct}%`}}/>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 text-[#4B6856] text-[11px]">{new Date(u.created_at).toLocaleDateString('en-GB')}</td>
+                          </tr>
+                        )
+                      })}
+                      {ovUsers.length===0 && (
+                        <tr><td colSpan={5} className="px-5 py-10 text-center text-[#4B6856] text-sm">No users found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                  {users.length > 8 && (
+                    <div className="px-5 py-3 border-t border-[#122016]">
+                      <button onClick={() => setTab('users')} className="text-[#A3E635] text-xs hover:underline cursor-pointer">
+                        View all {users.length} users →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right panel */}
+                <div className="w-64 shrink-0 space-y-4">
+
+                  {/* Plan distribution */}
+                  <div className="rounded-xl bg-[#0A110B] border border-[#122016] p-5">
+                    <div className="text-white font-semibold text-sm mb-1">Plans</div>
+                    <div className="text-[#4B6856] text-[11px] mb-4">User distribution by plan</div>
+                    {/* Donut chart via SVG */}
+                    <div className="flex justify-center mb-4">
+                      {(() => {
+                        const total = users.length || 1
+                        const segs = [
+                          { key:'free',     color:'#4B6856', count: planCounts.free     },
+                          { key:'starter',  color:'#3B82F6', count: planCounts.starter  },
+                          { key:'pro',      color:'#A3E635', count: planCounts.pro      },
+                          { key:'business', color:'#A855F7', count: planCounts.business },
+                        ].filter(s=>s.count>0)
+                        const r=40, cx=50, cy=50, stroke=14
+                        const circ = 2*Math.PI*r
+                        let offset = 0
+                        return (
+                          <svg width="100" height="100" viewBox="0 0 100 100">
+                            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#122016" strokeWidth={stroke}/>
+                            {segs.map(s=>{
+                              const dash=(s.count/total)*circ
+                              const el=<circle key={s.key} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth={stroke}
+                                strokeDasharray={`${dash} ${circ}`} strokeDashoffset={-offset} style={{transformOrigin:'center',transform:'rotate(-90deg)'}}/>
+                              offset+=dash; return el
+                            })}
+                            <text x={cx} y={cy+1} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="14" fontWeight="bold">{users.length}</text>
+                            <text x={cx} y={cy+13} textAnchor="middle" dominantBaseline="middle" fill="#4B6856" fontSize="7">users</text>
+                          </svg>
+                        )
+                      })()}
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { key:'free',     label:'Free',     color:'bg-[#4B6856]' },
+                        { key:'starter',  label:'Starter',  color:'bg-blue-500'  },
+                        { key:'pro',      label:'Pro',      color:'bg-[#A3E635]' },
+                        { key:'business', label:'Business', color:'bg-purple-500'},
+                      ].map(p=>(
+                        <div key={p.key} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${p.color}`}/>
+                            <span className="text-[#94A3B8] text-xs">{p.label}</span>
+                          </div>
+                          <span className="text-white text-xs font-medium">{planCounts[p.key]||0}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status overview */}
+                  <div className="rounded-xl bg-[#0A110B] border border-[#122016] p-5">
+                    <div className="text-white font-semibold text-sm mb-4">Status Overview</div>
+                    {[
+                      { label:'Active',  color:'bg-[#A3E635]', textColor:'text-[#A3E635]', count: users.filter(u=>u.role!=='banned').length },
+                      { label:'Banned',  color:'bg-red-500',   textColor:'text-red-400',   count: users.filter(u=>u.role==='banned').length  },
+                      { label:'Free',    color:'bg-amber-500', textColor:'text-amber-400', count: planCounts.free },
+                    ].map(s=>(
+                      <div key={s.label} className="mb-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className={`flex items-center gap-1.5 text-xs ${s.textColor}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.color}`}/>{s.label}
+                          </span>
+                          <span className="text-white text-xs font-medium">{s.count}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-[#122016] overflow-hidden">
+                          <div className={`h-full rounded-full ${s.color} transition-all`}
+                            style={{width:`${users.length?Math.round((s.count/users.length)*100):0}%`}}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Activity */}
+                  <div className="rounded-xl bg-[#0A110B] border border-[#122016] p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-white font-semibold text-sm">Activity</div>
+                      <Activity size={13} className="text-[#4B6856]"/>
+                    </div>
+                    <div className="space-y-3">
+                      {users.slice(0,4).map(u=>(
+                        <div key={u.id} className="flex items-start gap-2.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#A3E635] mt-1.5 shrink-0"/>
+                          <div>
+                            <div className="text-white text-[11px] font-medium">{u.name} joined</div>
+                            <div className="text-[#4B6856] text-[10px] mt-0.5">{new Date(u.created_at).toLocaleDateString('en-GB')}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {users.length===0 && <div className="text-[#4B6856] text-xs">No activity yet</div>}
+                    </div>
+                  </div>
+
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* ── USERS ── */}
