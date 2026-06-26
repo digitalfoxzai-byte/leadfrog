@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
 
   const [[rev]] = [await query<{total:number}[]>("SELECT COALESCE(SUM(amount),0) as total FROM subscriptions WHERE status='active'")]
   const [[pend]] = [await query<{total:number}[]>("SELECT COALESCE(SUM(amount),0) as total FROM subscriptions WHERE status='pending'")]
+  const [[ovd]] = [await query<{count:number}[]>("SELECT COUNT(*) as count FROM subscriptions WHERE status='pending' AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)")]
 
   return NextResponse.json({
     invoices,
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
       revenue: Math.round((rev as unknown as {total:number}).total / 100),
       pending: Math.round((pend as unknown as {total:number}).total / 100),
       upcomingCount: (upcoming as unknown[]).length,
+      overdue: (ovd as unknown as {count:number}).count,
     }
   })
 }

@@ -15,7 +15,7 @@ interface Stat { totalUsers: number; activeUsers: number; totalLeads: number; re
 interface DbUser { id: number; name: string; email: string; role: string; plan: string; plan_expires_at: string | null; lead_count: number; created_at: string }
 interface Invoice { id: number; plan: string; amount: number; status: string; created_at: string; user_name: string; user_email: string }
 interface Upcoming { id: number; name: string; email: string; plan: string; plan_expires_at: string; days_left: number }
-interface PayData { invoices: Invoice[]; upcoming: Upcoming[]; stats: { revenue: number; pending: number; upcomingCount: number } }
+interface PayData { invoices: Invoice[]; upcoming: Upcoming[]; stats: { revenue: number; pending: number; upcomingCount: number; overdue: number } }
 interface AdminSettings { razorpay_key_id: string; razorpay_key_secret: string; razorpay_mode: string; starter_price: string; pro_price: string; business_price: string; starter_leads: string; pro_leads: string; business_leads: string }
 
 type Tab = 'overview' | 'users' | 'plans' | 'payments' | 'settings'
@@ -56,6 +56,7 @@ export default function AdminPage() {
   const [settings, setSettings] = useState<AdminSettings>({ razorpay_key_id: '', razorpay_key_secret: '', razorpay_mode: 'test', starter_price: '499', pro_price: '999', business_price: '2499', starter_leads: '500', pro_leads: '2000', business_leads: '10000' })
   const [smtp, setSmtp] = useState<Record<string, string>>({ smtp_host: 'smtp.gmail.com', smtp_port: '465', smtp_user: '', smtp_pass: '', smtp_from_name: 'LeadFrog', smtp_admin_email: '' })
   const [account, setAccount] = useState({ currentPassword: '', newEmail: '', newPassword: '' })
+  const [paySubTab, setPaySubTab] = useState<'upcoming'|'invoices'>('upcoming')
   const [showSecret, setShowSecret] = useState(false)
   const [showSmtpPass, setShowSmtpPass] = useState(false)
   const [showNewPw, setShowNewPw] = useState(false)
@@ -574,81 +575,135 @@ export default function AdminPage() {
 
           {/* ── PAYMENTS ── */}
           {tab === 'payments' && payData && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-6">
+              {/* 4 stat cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: 'Revenue Collected', value: `₹${payData.stats.revenue}` },
-                  { label: 'Pending Amount',    value: `₹${payData.stats.pending}` },
-                  { label: 'Renewals (30 days)', value: payData.stats.upcomingCount },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-xl bg-[#0A110B] border border-[#122016] p-5">
-                    <div className="text-2xl font-bold text-white">{value}</div>
-                    <div className="text-xs text-[#4B6856] mt-1.5">{label}</div>
+                  { label: 'Upcoming (30 days)', value: payData.stats.upcomingCount, icon: '📅', color: 'text-blue-400',   border: 'border-t-blue-500/40',   bg: 'bg-blue-500/5' },
+                  { label: 'Revenue Collected',  value: `₹${payData.stats.revenue.toLocaleString()}`, icon: '₹', color: 'text-[#A3E635]', border: 'border-t-[#A3E635]/40', bg: 'bg-[#A3E635]/5' },
+                  { label: 'Pending Amount',     value: `₹${payData.stats.pending.toLocaleString()}`, icon: '⏱', color: 'text-amber-400',  border: 'border-t-amber-500/40', bg: 'bg-amber-500/5' },
+                  { label: 'Overdue Invoices',   value: payData.stats.overdue, icon: '⚠', color: 'text-red-400',    border: 'border-t-red-500/40',   bg: 'bg-red-500/5' },
+                ].map(({ label, value, color, border, bg }) => (
+                  <div key={label} className={`rounded-xl bg-[#0A110B] border border-[#122016] border-t-2 ${border} ${bg} p-5`}>
+                    <div className="text-[11px] font-semibold text-[#4B6856] uppercase tracking-wider mb-3">{label}</div>
+                    <div className={`text-2xl font-extrabold ${color}`}>{value}</div>
                   </div>
                 ))}
               </div>
 
-              {payData.upcoming.length > 0 && (
+              {/* Sub-tabs */}
+              <div className="flex items-center gap-0 border-b border-[#122016]">
+                {([
+                  ['upcoming', 'Upcoming Payments'],
+                  ['invoices', 'Invoices'],
+                ] as const).map(([key, label]) => (
+                  <button key={key} onClick={() => setPaySubTab(key)}
+                    className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-all cursor-pointer
+                      ${paySubTab === key ? 'border-[#A3E635] text-[#A3E635]' : 'border-transparent text-[#4B6856] hover:text-white'}`}>
+                    {label}
+                  </button>
+                ))}
+                <button onClick={loadPayments}
+                  className="ml-auto mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A110B] border border-[#122016] text-[#4B6856] hover:text-white text-xs cursor-pointer transition-all">
+                  <RefreshCw size={11} /> Refresh
+                </button>
+              </div>
+
+              {/* Upcoming Payments */}
+              {paySubTab === 'upcoming' && (
                 <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
-                  <div className="px-6 py-4 border-b border-[#122016] text-white font-semibold text-sm">Upcoming Renewals</div>
-                  <table className="w-full text-sm">
-                    <thead><tr className="border-b border-[#0D160E]">
-                      {['User', 'Email', 'Plan', 'Expires', 'Days Left'].map(h => (
-                        <th key={h} className="px-6 py-3 text-left text-[11px] text-[#4B6856] uppercase tracking-wider">{h}</th>
-                      ))}
-                    </tr></thead>
-                    <tbody>
-                      {payData.upcoming.map(u => (
-                        <tr key={u.id} className="border-b border-[#0D160E] hover:bg-[#0D160E]/60">
-                          <td className="px-6 py-4 text-white">{u.name}</td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{u.email}</td>
-                          <td className="px-6 py-4"><span className={`px-2.5 py-1 rounded-md text-xs font-medium ${PLAN_BADGE[u.plan] || ''}`}>{u.plan}</span></td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{new Date(u.plan_expires_at).toLocaleDateString('en-GB')}</td>
-                          <td className="px-6 py-4">
-                            <span className={`text-xs font-semibold ${u.days_left <= 7 ? 'text-red-400' : u.days_left <= 15 ? 'text-amber-400' : 'text-[#A3E635]'}`}>{u.days_left}d</span>
-                          </td>
+                  <div className="px-6 py-4 border-b border-[#122016]">
+                    <div className="font-bold text-sm text-white">Clients with Billing Due in 30 Days</div>
+                  </div>
+                  {payData.upcoming.length === 0 ? (
+                    <div className="p-12 text-center text-[#4B6856] text-sm">No upcoming renewals in the next 30 days.</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[#0D160E] text-[10px] font-semibold text-[#4B6856] uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left">Client</th>
+                          <th className="px-6 py-3 text-left">Plan</th>
+                          <th className="px-6 py-3 text-left">Billing Date</th>
+                          <th className="px-6 py-3 text-left">Days Left</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {payData.upcoming.map((u, i) => (
+                          <tr key={u.id} className={`hover:bg-[#0D160E]/60 transition-colors ${i < payData.upcoming.length - 1 ? 'border-b border-[#0D160E]' : ''}`}>
+                            <td className="px-6 py-4">
+                              <div className="font-semibold text-white">{u.name}</div>
+                              <div className="text-xs text-[#4B6856]">{u.email}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${PLAN_BADGE[u.plan] || ''}`}>
+                                {u.plan.charAt(0).toUpperCase() + u.plan.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-[#8FA896]">
+                              {new Date(u.plan_expires_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full
+                                ${u.days_left <= 5 ? 'bg-red-500/15 text-red-400' : u.days_left <= 10 ? 'bg-amber-500/15 text-amber-400' : 'bg-blue-500/15 text-blue-400'}`}>
+                                {u.days_left} days
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               )}
 
-              <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#122016]">
-                  <span className="text-white font-semibold text-sm">Invoices</span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-[#A3E635]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#A3E635] animate-pulse inline-block" /> Live Data
-                  </span>
-                </div>
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b border-[#0D160E]">
-                    {['User', 'Email', 'Plan', 'Amount', 'Date', 'Status'].map(h => (
-                      <th key={h} className="px-6 py-3 text-left text-[11px] text-[#4B6856] uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {(payData.invoices as Invoice[]).length === 0
-                      ? <tr><td colSpan={6} className="px-6 py-12 text-center text-[#4B6856] text-sm">No invoices yet</td></tr>
-                      : (payData.invoices as Invoice[]).map((inv, i) => (
-                        <tr key={inv.id} className={`border-b border-[#0D160E] hover:bg-[#0D160E]/60 ${i % 2 === 0 ? '' : 'bg-[#070D08]/40'}`}>
-                          <td className="px-6 py-4 text-white">{inv.user_name}</td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{inv.user_email}</td>
-                          <td className="px-6 py-4"><span className={`px-2.5 py-1 rounded-md text-xs font-medium ${PLAN_BADGE[inv.plan] || ''}`}>{inv.plan}</span></td>
-                          <td className="px-6 py-4 text-white font-medium">₹{Math.round(inv.amount / 100)}</td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{new Date(inv.created_at).toLocaleDateString('en-GB')}</td>
-                          <td className="px-6 py-4">
-                            <span className={`flex items-center gap-1.5 text-xs font-medium ${STATUS_BADGE[inv.status] || ''}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${inv.status === 'active' || inv.status === 'paid' ? 'bg-[#A3E635]' : inv.status === 'pending' ? 'bg-amber-400' : 'bg-red-400'}`} />
-                              {inv.status}
-                            </span>
-                          </td>
+              {/* Invoices */}
+              {paySubTab === 'invoices' && (
+                <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
+                  {(payData.invoices as Invoice[]).length === 0 ? (
+                    <div className="p-12 text-center text-[#4B6856] text-sm">No invoices yet.</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[#0D160E] text-[10px] font-semibold text-[#4B6856] uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left">Client</th>
+                          <th className="px-6 py-3 text-left">Plan</th>
+                          <th className="px-6 py-3 text-left">Date</th>
+                          <th className="px-6 py-3 text-left">Amount</th>
+                          <th className="px-6 py-3 text-left">Status</th>
                         </tr>
-                      ))
-                    }
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {(payData.invoices as Invoice[]).map((inv, i) => (
+                          <tr key={inv.id} className={`hover:bg-[#0D160E]/60 transition-colors ${i < (payData.invoices as Invoice[]).length - 1 ? 'border-b border-[#0D160E]' : ''}`}>
+                            <td className="px-6 py-4">
+                              <div className="font-semibold text-white">{inv.user_name}</div>
+                              <div className="text-xs text-[#4B6856]">{inv.user_email}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${PLAN_BADGE[inv.plan] || ''}`}>
+                                {inv.plan.charAt(0).toUpperCase() + inv.plan.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-[#8FA896]">
+                              {new Date(inv.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </td>
+                            <td className="px-6 py-4 text-white font-bold">₹{Math.round(inv.amount / 100).toLocaleString()}</td>
+                            <td className="px-6 py-4">
+                              <span className={`flex items-center gap-1.5 text-xs font-semibold w-fit px-2.5 py-1 rounded-full
+                                ${inv.status === 'active' || inv.status === 'paid' ? 'bg-[#A3E635]/10 text-[#A3E635]'
+                                  : inv.status === 'pending' ? 'bg-amber-500/10 text-amber-400'
+                                  : 'bg-red-500/10 text-red-400'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${inv.status === 'active' || inv.status === 'paid' ? 'bg-[#A3E635]' : inv.status === 'pending' ? 'bg-amber-400' : 'bg-red-400'}`} />
+                                {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
