@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const users = await query(`
     SELECT u.id, u.name, u.email, u.role, u.plan, u.plan_expires_at, u.scrape_count, u.created_at,
     (SELECT COUNT(*) FROM leads l WHERE l.user_id = u.id) as lead_count
-    FROM users u ORDER BY u.created_at DESC
+    FROM users u WHERE u.role != 'admin' ORDER BY u.created_at DESC
   `)
   return NextResponse.json({ users })
 }
