@@ -19,8 +19,13 @@ export default function LoginPage() {
     setError(''); setLoading(true)
     const res = await signIn('credentials', { ...form, redirect: false })
     setLoading(false)
-    if (res?.ok) router.push('/dashboard')
-    else setError('Invalid email or password')
+    if (res?.ok) {
+      // Fetch session to check role
+      const { getSession } = await import('next-auth/react')
+      const session = await getSession()
+      const role = (session?.user as { role?: string })?.role
+      router.push(role === 'admin' ? '/admin' : '/dashboard')
+    } else setError('Invalid email or password')
   }
 
   return (

@@ -39,7 +39,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
-  }, [status, router])
+    if (status === 'authenticated' && (session?.user as { role?: string })?.role === 'admin') router.push('/admin')
+  }, [status, session, router])
 
   useEffect(() => {
     let list = [...leads]
