@@ -196,8 +196,8 @@ export default function AdminPage() {
 
         {/* Page header — hidden on overview (has its own greeting) */}
         {tab !== 'overview' && (
-          <div className="px-8 pt-8 pb-5 shrink-0">
-            <div className="flex items-start justify-between">
+          <div className="px-10 pt-8 pb-5 shrink-0">
+            <div className="max-w-5xl mx-auto flex items-start justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-white tracking-tight">{PAGE_TITLES[tab].title}</h1>
                 <p className="text-sm text-[#4B6856] mt-1">{PAGE_TITLES[tab].sub}</p>
@@ -219,7 +219,8 @@ export default function AdminPage() {
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-8 pt-6 pb-8 space-y-5">
+        <div className="flex-1 overflow-y-auto py-8 px-10">
+          <div className="max-w-5xl mx-auto space-y-5">
 
           {/* ── OVERVIEW ── */}
           {tab === 'overview' && (
@@ -799,6 +800,7 @@ export default function AdminPage() {
             </div>
           )}
 
+          </div>
         </div>
       </div>
     </div>
