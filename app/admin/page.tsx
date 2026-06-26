@@ -220,7 +220,7 @@ export default function AdminPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto py-8 px-10">
-          <div className="max-w-5xl mx-auto space-y-5">
+          <div className={`${tab === 'overview' ? 'max-w-7xl' : 'max-w-5xl'} mx-auto space-y-5`}>
 
           {/* ── OVERVIEW ── */}
           {tab === 'overview' && (
