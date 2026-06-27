@@ -4,9 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 const PLANS: Record<string, { monthly: number; annual: number; name: string }> = {
-  starter:  { monthly: 49900,  annual: 479040,  name: 'Starter'  },  // ₹499 → ₹4790/yr (-20%)
-  pro:      { monthly: 99900,  annual: 958080,  name: 'Pro'      },  // ₹999 → ₹9581/yr (-20%)
-  business: { monthly: 249900, annual: 2399040, name: 'Business' },  // ₹2499 → ₹23990/yr (-20%)
+  starter:  { monthly: 49900,  annual: 478800,  name: 'Starter'  },  // ₹499/mo → ₹399/mo × 12 = ₹4788/yr
+  pro:      { monthly: 99900,  annual: 958800,  name: 'Pro'      },  // ₹999/mo → ₹799/mo × 12 = ₹9588/yr
+  business: { monthly: 249900, annual: 2398800, name: 'Business' },  // ₹2499/mo → ₹1999/mo × 12 = ₹23988/yr
 }
 
 export async function POST(req: NextRequest) {

@@ -10,7 +10,7 @@ export async function GET() {
   const userId = parseInt((session.user as { id?: string }).id || '0', 10)
 
   const rows = await query<{
-    id: number; plan: string; razorpay_order_id: string; razorpay_payment_id: string | null
+    id: number; plan: string; orderId: string; paymentId: string | null
     amount: number; status: string; date: string; due: string; cycle: string
   }[]>(
     `SELECT id, plan, razorpay_order_id as orderId, razorpay_payment_id as paymentId,

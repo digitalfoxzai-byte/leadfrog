@@ -250,7 +250,7 @@ export default function BillingPage() {
       includedColor: usage?.isActive ? '#4ADE80' : '#ef4444',
     },
     {
-      label: 'Plan Devices', sublabel: 'Plan Limit',
+      label: 'Lead Limit', sublabel: currentPlan === 'free' ? 'Trial Cap' : 'Per Month',
       value: usage?.leadsLimit === -1 ? '∞' : String(usage?.leadsLimit ?? 50),
       icon: Users, color: 'text-purple-400',
       included: true,
