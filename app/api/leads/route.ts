@@ -35,12 +35,41 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ leads })
 }
 
+const PLAN_LIMITS: Record<string, { leads: number; monthly: boolean; trialDays?: number }> = {
+  free:     { leads: 50,    monthly: false, trialDays: 3 },
+  starter:  { leads: 500,   monthly: true },
+  pro:      { leads: 2000,  monthly: true },
+  business: { leads: 10000, monthly: true },
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const userId = getUserId(session)
   if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+
+  const role = (session as { user?: { role?: string } }).user?.role
+  if (role !== 'admin') {
+    const users = await query<{ plan: string; plan_expires_at: string | null; created_at: string }[]>(
+      'SELECT plan, plan_expires_at, created_at FROM users WHERE id = ?', [userId]
+    )
+    const user = users[0]
+    if (user) {
+      const plan = user.plan || 'free'
+      const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free
+      if (plan === 'free' && limits.trialDays) {
+        const trialEnd = new Date(new Date(user.created_at).getTime() + limits.trialDays * 24 * 60 * 60 * 1000)
+        if (Date.now() > trialEnd.getTime()) return NextResponse.json({ error: 'trial_expired' }, { status: 403 })
+      } else if (user.plan_expires_at && Date.now() > new Date(user.plan_expires_at).getTime()) {
+        return NextResponse.json({ error: 'plan_expired' }, { status: 403 })
+      }
+      const countRows = limits.monthly
+        ? await query<{ count: number }[]>("SELECT COUNT(*) as count FROM leads WHERE user_id = ? AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')", [userId])
+        : await query<{ count: number }[]>('SELECT COUNT(*) as count FROM leads WHERE user_id = ?', [userId])
+      if (Number(countRows[0]?.count || 0) >= limits.leads) return NextResponse.json({ error: 'limit_reached' }, { status: 403 })
+    }
+  }
 
   const body = await req.json()
 
