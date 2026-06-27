@@ -28,8 +28,10 @@ export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // Data
-  const [leads, setLeads] = useState<Lead[]>([])
+  // scraperResults = ephemeral, current session only (never saved to state long-term)
+  // dbLeads = loaded from DB, persists across views
+  const [scraperResults, setScraperResults] = useState<Lead[]>([])
+  const [dbLeads, setDbLeads] = useState<Lead[]>([])
   const [scraping, setScraping] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressTxt, setProgressTxt] = useState('Initializing...')
@@ -68,14 +70,27 @@ export default function DashboardPage() {
     if (status === 'authenticated' && (session?.user as { role?: string })?.role === 'admin') router.push('/admin')
   }, [status, session, router])
 
+  // Load DB leads on mount
   useEffect(() => {
     if (status !== 'authenticated') return
-    fetch('/api/leads').then(r => r.json()).then(d => { if (d.leads) setLeads(d.leads) })
+    fetch('/api/leads').then(r => r.json()).then(d => { if (d.leads) setDbLeads(d.leads) })
   }, [status])
 
-  // Filtered + sorted leads
+  // Reload DB leads when switching to All Leads view
+  useEffect(() => {
+    if (view === 'leads' && status === 'authenticated') {
+      fetch('/api/leads').then(r => r.json()).then(d => { if (d.leads) setDbLeads(d.leads) })
+    }
+    setSelected(new Set())
+    setPage(1)
+  }, [view, status])
+
+  // Active list depends on view
+  const activeLeads = view === 'scraper' ? scraperResults : dbLeads
+
+  // Filtered + sorted
   const filtered = useMemo(() => {
-    let list = [...leads]
+    let list = [...activeLeads]
     if (statusFilter !== 'all') list = list.filter(l => l.status === statusFilter)
     if (webFilter === 'yes') list = list.filter(l => l.website)
     if (webFilter === 'no') list = list.filter(l => !l.website)
@@ -94,16 +109,17 @@ export default function DashboardPage() {
       return 0
     })
     return list
-  }, [leads, statusFilter, webFilter, ratingFilter, search, sortF])
+  }, [activeLeads, statusFilter, webFilter, ratingFilter, search, sortF])
 
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
 
+  // Stats always from dbLeads (reflects saved data)
   const stats = {
-    total: leads.length,
-    qualified: leads.filter(l => l.status === 'qualified').length,
-    contacted: leads.filter(l => l.status === 'contacted').length,
-    hasWebsite: leads.filter(l => l.website).length,
+    total: dbLeads.length,
+    qualified: dbLeads.filter(l => l.status === 'qualified').length,
+    contacted: dbLeads.filter(l => l.status === 'contacted').length,
+    hasWebsite: dbLeads.filter(l => l.website).length,
   }
 
   const startScrape = useCallback(async () => {
@@ -136,9 +152,11 @@ export default function DashboardPage() {
       if (form.hasWebsite) results = results.filter((l: Lead) => l.website)
       if (form.hasPhone) results = results.filter((l: Lead) => l.phone)
 
-      setLeads(prev => [...results, ...prev])
+      // Show in scraper view; save to DB; update DB leads count
+      setScraperResults(results)
       await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(results) })
-      showToast(`${results.length} leads scraped successfully`)
+      setDbLeads(prev => [...results, ...prev])
+      showToast(`${results.length} leads scraped & saved`)
     } catch {
       showToast('Scraping failed. Please try again.', false)
     } finally {
@@ -161,25 +179,55 @@ export default function DashboardPage() {
     a.download = 'leadfrog_leads.json'; a.click()
   }, [filtered])
 
-  const deleteAll = useCallback(async () => {
-    await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:'all'}) })
-    setLeads([]); setDelConfirm(false); showToast('All leads cleared')
-  }, [])
+  // Clear All behaviour differs by view:
+  // Scraper view → only clears scraperResults (no DB delete)
+  // All Leads view → deletes from DB
+  const handleClearAll = useCallback(async () => {
+    if (view === 'scraper') {
+      setScraperResults([])
+      setDelConfirm(false)
+      showToast('Scraper results cleared')
+    } else {
+      await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:'all'}) })
+      setDbLeads([])
+      setDelConfirm(false)
+      showToast('All leads deleted')
+    }
+  }, [view])
 
   const deleteLead = useCallback(async (idx: number) => {
     const lead = filtered[idx]
-    if (lead?.id) await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:[lead.id]}) })
-    setLeads(prev => prev.filter(l => l !== lead))
-  }, [filtered])
+    if (view === 'scraper') {
+      // Remove from scraper view
+      setScraperResults(prev => prev.filter(l => l !== lead))
+      // Also delete from DB and dbLeads if it was saved (has id)
+      if (lead?.id) {
+        await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:[lead.id]}) })
+        setDbLeads(prev => prev.filter(l => l.id !== lead.id))
+      }
+    } else {
+      if (lead?.id) await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:[lead.id]}) })
+      setDbLeads(prev => prev.filter(l => l !== lead))
+    }
+  }, [filtered, view])
 
   const cycleStatus = useCallback((idx: number) => {
     const order = ['new','contacted','qualified','converted','lost']
     const lead = filtered[idx]
-    setLeads(prev => prev.map(l => l === lead ? { ...l, status: order[(order.indexOf(l.status)+1)%order.length] } : l))
-  }, [filtered])
+    if (view === 'scraper') {
+      setScraperResults(prev => prev.map(l => l === lead ? { ...l, status: order[(order.indexOf(l.status)+1)%order.length] } : l))
+    } else {
+      setDbLeads(prev => prev.map(l => l === lead ? { ...l, status: order[(order.indexOf(l.status)+1)%order.length] } : l))
+    }
+  }, [filtered, view])
 
   const bulkSetStatus = (s: string) => {
-    setLeads(prev => prev.map((l, i) => selected.has(i) ? {...l, status: s} : l))
+    const leads = filtered
+    if (view === 'scraper') {
+      setScraperResults(prev => prev.map((l) => selected.has(leads.indexOf(l)) ? {...l, status: s} : l))
+    } else {
+      setDbLeads(prev => prev.map((l) => selected.has(leads.indexOf(l)) ? {...l, status: s} : l))
+    }
     setSelected(new Set()); showToast(`${selected.size} leads marked as ${s}`)
   }
   const bulkExport = () => exportCSV(Array.from(selected).map(i => filtered[i]).filter(Boolean))
@@ -188,6 +236,8 @@ export default function DashboardPage() {
   const selectAll = () => setSelected(selected.size === filtered.length && filtered.length > 0 ? new Set() : new Set(filtered.map((_,i)=>i)))
 
   if (status === 'loading') return <div className="min-h-screen bg-[#050A06] flex items-center justify-center text-[#4B6856]">Loading...</div>
+
+  const isScraperView = view === 'scraper'
 
   return (
     <div className="flex h-screen bg-[#050A06] overflow-hidden">
@@ -200,12 +250,13 @@ export default function DashboardPage() {
         </div>
         <nav className="flex-1 p-3 text-sm">
           <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
-          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${view==='scraper' ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
+          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${isScraperView ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
             <Search size={14} /> Scraper
+            {scraperResults.length > 0 && <span className="ml-auto text-[10px] bg-[#4ADE80]/10 text-[#4ADE80] px-2 py-0.5 rounded-full font-bold">{scraperResults.length}</span>}
           </button>
-          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${view==='leads' ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
+          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${!isScraperView ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
             <Users size={14} /> All Leads
-            <span className="ml-auto text-[10px] bg-[#A3E635]/10 text-[#A3E635] px-2 py-0.5 rounded-full font-bold">{leads.length}</span>
+            <span className="ml-auto text-[10px] bg-[#A3E635]/10 text-[#A3E635] px-2 py-0.5 rounded-full font-bold">{dbLeads.length}</span>
           </button>
           <div className="h-px bg-[#122016] my-2" />
           <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Export</div>
@@ -233,10 +284,15 @@ export default function DashboardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
         <header className="flex items-center justify-between px-6 py-3 border-b border-[#122016] shrink-0 bg-[#070D08]/80 backdrop-blur-sm sticky top-0 z-40">
-          <span className="text-white font-bold text-base tracking-tight">{view==='scraper' ? 'Scraper' : 'All Leads'}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-white font-bold text-base tracking-tight">{isScraperView ? 'Scraper' : 'All Leads'}</span>
+            {isScraperView && scraperResults.length > 0 && (
+              <span className="text-[10px] text-[#4B6856] bg-[#0A110B] border border-[#122016] px-2 py-0.5 rounded-full">session results</span>
+            )}
+          </div>
           <div className="flex gap-2.5">
             <button onClick={() => setDelConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#94A3B8] border border-[#122016] hover:border-red-500/30 hover:text-red-400 transition-all cursor-pointer">
-              <Trash2 size={13} /> Clear All
+              <Trash2 size={13} /> {isScraperView ? 'Clear Results' : 'Clear All'}
             </button>
             <button onClick={() => exportCSV()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs bg-amber-500/90 hover:bg-amber-400 text-black font-semibold transition-all cursor-pointer">
               <Download size={13} /> Export CSV
@@ -246,7 +302,7 @@ export default function DashboardPage() {
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-dark">
 
-          {/* Stats */}
+          {/* Stats — always from DB */}
           <div className="grid grid-cols-4 gap-3">
             {[
               { label:'Total Leads',  value:stats.total,      icon:Users,        color:'text-[#4ADE80]', glow:'bg-[#4ADE80]',  bg:'bg-[#4ADE80]/10' },
@@ -269,7 +325,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Scraper Card */}
-          {view === 'scraper' && (
+          {isScraperView && (
           <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] overflow-hidden">
             <button onClick={() => setPanelOpen(p => !p)}
               className="w-full flex items-center justify-between px-5 py-4 border-b border-[#122016] cursor-pointer hover:bg-[#A3E635]/[0.03] transition-colors"
@@ -382,6 +438,21 @@ export default function DashboardPage() {
           </div>
           )}
 
+          {/* Scraper view empty state (no results yet) */}
+          {isScraperView && scraperResults.length === 0 && !scraping && (
+            <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] py-16 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-[#A3E635]/5 border border-[#A3E635]/10 flex items-center justify-center mx-auto mb-4">
+                <Search size={26} className="text-[#4ADE80]" />
+              </div>
+              <div className="text-[#94A3B8] font-bold mb-1">No results yet</div>
+              <div className="text-xs text-[#4B6856]">Enter a keyword and location, then click Start Scraping</div>
+              <div className="text-xs text-[#4B6856] mt-1">Your saved leads are in the <button onClick={() => setView('leads')} className="text-[#4ADE80] underline cursor-pointer">All Leads</button> tab</div>
+            </div>
+          )}
+
+          {/* Table (shown in scraper only when results exist, always shown in leads view) */}
+          {(!isScraperView || scraperResults.length > 0) && (
+          <>
           {/* Filter Bar */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -431,13 +502,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {paged.length === 0 ? (
-                    <tr><td colSpan={10} className="py-16 text-center">
-                      <div className="w-14 h-14 rounded-2xl bg-[#A3E635]/5 border border-[#A3E635]/10 flex items-center justify-center mx-auto mb-4">
-                        <Search size={26} className="text-[#4ADE80]" />
-                      </div>
-                      <div className="text-[#94A3B8] font-bold mb-1">No leads yet</div>
-                      <div className="text-xs text-[#4B6856]">Click Start Scraping to begin</div>
-                    </td></tr>
+                    <tr><td colSpan={10} className="py-12 text-center text-xs text-[#4B6856]">No leads match your filters</td></tr>
                   ) : paged.map((lead, i) => {
                     const realIdx = (page - 1) * PER_PAGE + i
                     return (
@@ -472,7 +537,7 @@ export default function DashboardPage() {
                           </button>
                         </td>
                         <td className="px-3 py-3">
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{opacity:1}}>
+                          <div className="flex gap-1">
                             <button onClick={() => setModalLead(lead)} title="View" className="w-7 h-7 rounded-md flex items-center justify-center border border-[#1A321E] text-[#4B6856] hover:text-[#4ADE80] hover:border-[#4ADE80]/30 hover:bg-[#4ADE80]/10 transition-all cursor-pointer">
                               <Eye size={12} />
                             </button>
@@ -510,6 +575,8 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+          </>
+          )}
 
         </div>
       </div>
@@ -562,7 +629,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Delete Confirm */}
+      {/* Clear Confirm */}
       {delConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center">
           <div className="bg-[#0A110B] border border-[#1A321E] rounded-2xl w-[340px] overflow-hidden shadow-2xl">
@@ -572,12 +639,26 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="px-6 pb-4 pt-3 text-center">
-              <div className="text-base font-bold text-white mb-1.5">Clear All Leads?</div>
-              <div className="text-xs text-[#4B6856] leading-relaxed">This will permanently delete all <span className="text-[#94A3B8] font-semibold">{leads.length} leads</span> from your account.</div>
+              {isScraperView ? (
+                <>
+                  <div className="text-base font-bold text-white mb-1.5">Clear Scraper Results?</div>
+                  <div className="text-xs text-[#4B6856] leading-relaxed">
+                    This removes <span className="text-[#94A3B8] font-semibold">{scraperResults.length} results</span> from the scraper view only.
+                    <br /><span className="text-[#4ADE80]">Your saved leads remain safe in All Leads.</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-base font-bold text-white mb-1.5">Delete All Leads?</div>
+                  <div className="text-xs text-[#4B6856] leading-relaxed">This will permanently delete all <span className="text-[#94A3B8] font-semibold">{dbLeads.length} leads</span> from your account.</div>
+                </>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2.5 px-6 pb-5">
               <button onClick={() => setDelConfirm(false)} className="py-2.5 rounded-xl border border-[#1A321E] text-[#94A3B8] text-sm font-semibold hover:text-white hover:bg-white/[0.05] cursor-pointer transition-all">Cancel</button>
-              <button onClick={deleteAll} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-white text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">Delete All</button>
+              <button onClick={handleClearAll} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-white text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">
+                {isScraperView ? 'Clear Results' : 'Delete All'}
+              </button>
             </div>
           </div>
         </div>
