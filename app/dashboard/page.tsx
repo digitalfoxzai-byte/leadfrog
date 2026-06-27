@@ -66,6 +66,14 @@ function DashboardInner() {
   const [planLoading, setPlanLoading] = useState(true)
   const [buyingPlan, setBuyingPlan] = useState<string | null>(null)
 
+  const plan = planStatus?.plan || 'free'
+  const isStarter = ['starter', 'pro', 'business', 'admin'].includes(plan)
+  const isPro     = ['pro', 'business', 'admin'].includes(plan)
+  const isBusiness = ['business', 'admin'].includes(plan)
+
+  const [keyHistory, setKeyHistory] = useState<{keyword:string;location:string;results:number}[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+
   const [panelOpen, setPanelOpen] = useState(true)
   const [form, setForm] = useState({
     keyword: '', location: '', maxResults: '20',
@@ -106,6 +114,10 @@ function DashboardInner() {
     fetch('/api/plan/status').then(r => r.json()).then(d => {
       setPlanStatus(d)
       setPlanLoading(false)
+      const p = d?.plan || 'free'
+      if (['pro', 'business', 'admin'].includes(p)) {
+        fetch('/api/keyword-history').then(r => r.json()).then(h => Array.isArray(h) && setKeyHistory(h))
+      }
     }).catch(() => setPlanLoading(false))
   }, [status])
 
@@ -244,6 +256,10 @@ function DashboardInner() {
       } : p)
 
       showToast(`${results.length} leads scraped & saved`)
+      if (isPro) {
+        fetch('/api/keyword-history', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ keyword: form.keyword, location: form.location, results: results.length }) })
+          .then(() => fetch('/api/keyword-history').then(r => r.json()).then(h => Array.isArray(h) && setKeyHistory(h)))
+      }
     } catch {
       showToast('Scraping failed. Please try again.', false)
     } finally {
@@ -400,9 +416,16 @@ function DashboardInner() {
               <button onClick={() => exportCSV()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
                 <Download size={14} /> Export CSV
               </button>
-              <button onClick={exportJSON} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
-                <FileJson size={14} /> Export JSON
-              </button>
+              {isStarter ? (
+                <button onClick={exportJSON} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+                  <FileJson size={14} /> Export JSON
+                </button>
+              ) : (
+                <button onClick={() => router.push('/dashboard/billing')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] border-l-2 border-transparent text-[13.5px] font-medium opacity-50 cursor-pointer hover:opacity-80">
+                  <Lock size={13} /> Export JSON
+                  <span className="ml-auto text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">Starter+</span>
+                </button>
+              )}
             </>
           )}
         </nav>
@@ -583,11 +606,32 @@ function DashboardInner() {
                 {panelOpen && (
                 <div className="p-5">
                   <div className="grid grid-cols-4 gap-3 mb-3">
-                    <div>
-                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Keyword / Business Type</label>
-                      <input value={form.keyword} onChange={e => setForm(f=>({...f,keyword:e.target.value}))}
+                    <div className="relative">
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold flex items-center gap-1.5">
+                        Keyword / Business Type
+                        {isPro && keyHistory.length > 0 && (
+                          <button type="button" onClick={() => setShowHistory(v => !v)}
+                            className="text-[#A3E635] hover:text-[#4ADE80] transition-colors cursor-pointer" title="Recent searches">
+                            <RefreshCw size={9} />
+                          </button>
+                        )}
+                      </label>
+                      <input value={form.keyword} onChange={e => { setForm(f=>({...f,keyword:e.target.value})); setShowHistory(false) }}
                         placeholder="e.g. Dentists, Restaurants, Gyms"
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm" />
+                      {isPro && showHistory && keyHistory.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--ds-bg1)] border border-[var(--ds-bd1)] rounded-xl shadow-2xl z-50 overflow-hidden">
+                          <div className="px-3 py-1.5 text-[9px] text-[var(--ds-muted)] uppercase tracking-widest border-b border-[var(--ds-bd1)] font-bold">Recent Searches</div>
+                          {keyHistory.slice(0, 8).map((h, i) => (
+                            <button key={i} type="button"
+                              onClick={() => { setForm(f=>({...f, keyword: h.keyword, location: h.location})); setShowHistory(false) }}
+                              className="w-full flex items-center justify-between px-3 py-2 text-xs text-[var(--ds-muted)] hover:text-[var(--ds-text)] hover:bg-white/[0.04] transition-colors text-left cursor-pointer">
+                              <span><span className="text-[var(--ds-dim)] font-medium">{h.keyword}</span> · {h.location}</span>
+                              <span className="text-[9px] text-[var(--ds-muted)] ml-2 shrink-0">{h.results} leads</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">City / Location</label>
@@ -609,53 +653,69 @@ function DashboardInner() {
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-3 mb-4">
-                    <div>
-                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Rating</label>
-                      <select value={form.minRating} onChange={e => setForm(f=>({...f,minRating:e.target.value}))}
-                        className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
-                        <option value="0">Any Rating</option>
-                        <option value="3">3+ Stars</option>
-                        <option value="4">4+ Stars</option>
-                        <option value="4.5">4.5+ Stars</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Reviews</label>
-                      <select value={form.minReviews} onChange={e => setForm(f=>({...f,minReviews:e.target.value}))}
-                        className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
-                        <option value="0">Any</option>
-                        <option value="10">10+</option>
-                        <option value="50">50+</option>
-                        <option value="100">100+</option>
-                        <option value="500">500+</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Strategy</label>
-                      <select value={form.strategy} onChange={e => setForm(f=>({...f,strategy:e.target.value}))}
-                        className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
-                        <option value="fast">Fast (1–5 min)</option>
-                        <option value="detailed">Detailed (10–20 min)</option>
-                        <option value="deep">Deep (max results)</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col justify-center gap-3 pt-1">
-                      {[
-                        { key:'hasWebsite', label:'Has website only' },
-                        { key:'hasPhone',   label:'Has phone only' },
-                      ].map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2.5 cursor-pointer">
-                          <div className="relative w-9 h-5">
-                            <input type="checkbox" className="sr-only"
-                              checked={form[key as 'hasWebsite'|'hasPhone']}
-                              onChange={e => setForm(f=>({...f,[key]:e.target.checked}))} />
-                            <div className={`absolute inset-0 rounded-full border transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'bg-[#16A34A]/30 border-[#16A34A]' : 'bg-[var(--ds-bg2)] border-[var(--ds-bd2)]'}`} />
-                            <div className={`absolute top-[3px] left-[3px] w-[14px] h-[14px] rounded-full transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'translate-x-4 bg-[#4ADE80]' : 'bg-[var(--ds-muted)]'}`} />
+                  <div className="relative mb-4">
+                    {!isStarter && (
+                      <div className="absolute inset-0 rounded-xl z-10 flex items-center justify-center cursor-pointer"
+                        style={{background:'rgba(7,13,8,0.75)',backdropFilter:'blur(3px)'}}
+                        onClick={() => router.push('/dashboard/billing')}>
+                        <div className="flex items-center gap-2 bg-[var(--ds-bg2)] border border-[#A3E635]/30 rounded-xl px-4 py-2.5">
+                          <Lock size={13} className="text-[#A3E635]" />
+                          <div>
+                            <div className="text-xs font-bold text-[var(--ds-text)]">Advanced Filters</div>
+                            <div className="text-[9px] text-[var(--ds-muted)]">Upgrade to Starter+ to unlock</div>
                           </div>
-                          <span className="text-xs text-[var(--ds-dim)] font-medium">{label}</span>
-                        </label>
-                      ))}
+                          <span className="ml-2 text-[9px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold">Starter+</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className={`grid grid-cols-4 gap-3 ${!isStarter ? 'opacity-30 pointer-events-none select-none' : ''}`}>
+                      <div>
+                        <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Rating</label>
+                        <select value={form.minRating} onChange={e => setForm(f=>({...f,minRating:e.target.value}))}
+                          className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                          <option value="0">Any Rating</option>
+                          <option value="3">3+ Stars</option>
+                          <option value="4">4+ Stars</option>
+                          <option value="4.5">4.5+ Stars</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Reviews</label>
+                        <select value={form.minReviews} onChange={e => setForm(f=>({...f,minReviews:e.target.value}))}
+                          className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                          <option value="0">Any</option>
+                          <option value="10">10+</option>
+                          <option value="50">50+</option>
+                          <option value="100">100+</option>
+                          <option value="500">500+</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Strategy</label>
+                        <select value={form.strategy} onChange={e => setForm(f=>({...f,strategy:e.target.value}))}
+                          className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                          <option value="fast">Fast (1–5 min)</option>
+                          <option value="detailed">Detailed (10–20 min)</option>
+                          <option value="deep">Deep (max results)</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col justify-center gap-3 pt-1">
+                        {[
+                          { key:'hasWebsite', label:'Has website only' },
+                          { key:'hasPhone',   label:'Has phone only' },
+                        ].map(({ key, label }) => (
+                          <label key={key} className="flex items-center gap-2.5 cursor-pointer">
+                            <div className="relative w-9 h-5">
+                              <input type="checkbox" className="sr-only"
+                                checked={form[key as 'hasWebsite'|'hasPhone']}
+                                onChange={e => setForm(f=>({...f,[key]:e.target.checked}))} />
+                              <div className={`absolute inset-0 rounded-full border transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'bg-[#16A34A]/30 border-[#16A34A]' : 'bg-[var(--ds-bg2)] border-[var(--ds-bd2)]'}`} />
+                              <div className={`absolute top-[3px] left-[3px] w-[14px] h-[14px] rounded-full transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'translate-x-4 bg-[#4ADE80]' : 'bg-[var(--ds-muted)]'}`} />
+                            </div>
+                            <span className="text-xs text-[var(--ds-dim)] font-medium">{label}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -698,22 +758,37 @@ function DashboardInner() {
                     <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search leads..."
                       className="input-dark w-[220px] pl-8 pr-3 py-2 rounded-lg text-sm" />
                   </div>
-                  {([
-                    { val: statusFilter, set: (v:string) => { setStatusFilter(v); setPage(1) }, opts: STATUS_OPTS.map(s => ({v:s, l: s==='all'?'All Status':s.charAt(0).toUpperCase()+s.slice(1)})) },
-                    { val: ratingFilter, set: (v:string) => { setRatingFilter(v); setPage(1) }, opts: [{v:'0',l:'Any Rating'},{v:'3',l:'3+ Stars'},{v:'4',l:'4+ Stars'},{v:'4.5',l:'4.5+ Stars'}] },
-                    { val: webFilter,    set: (v:string) => { setWebFilter(v); setPage(1) },    opts: [{v:'all',l:'All'},{v:'yes',l:'Has Website'},{v:'no',l:'No Website'}] },
-                    { val: sortF,        set: (v:string) => { setSortF(v); setPage(1) },         opts: [{v:'rating_desc',l:'Rating ↓'},{v:'rating_asc',l:'Rating ↑'},{v:'reviews_desc',l:'Reviews ↓'},{v:'name_asc',l:'Name A–Z'},{v:'name_desc',l:'Name Z–A'}] },
-                  ] as const).map((f, i) => (
-                    <select key={i} value={f.val} onChange={e => (f.set as (v:string)=>void)(e.target.value)}
-                      className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
-                      {(f.opts as {v:string;l:string}[]).map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-                    </select>
-                  ))}
+                  <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+                    className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    {STATUS_OPTS.map(s => <option key={s} value={s}>{s==='all'?'All Status':s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+                  </select>
+                  {isStarter ? (
+                    <>
+                      <select value={ratingFilter} onChange={e => { setRatingFilter(e.target.value); setPage(1) }}
+                        className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
+                        {[{v:'0',l:'Any Rating'},{v:'3',l:'3+ Stars'},{v:'4',l:'4+ Stars'},{v:'4.5',l:'4.5+ Stars'}].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                      </select>
+                      <select value={webFilter} onChange={e => { setWebFilter(e.target.value); setPage(1) }}
+                        className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
+                        {[{v:'all',l:'All'},{v:'yes',l:'Has Website'},{v:'no',l:'No Website'}].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                      </select>
+                    </>
+                  ) : (
+                    <button onClick={() => router.push('/dashboard/billing')}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-semibold border border-[var(--ds-bd1)] text-[var(--ds-muted)] opacity-60 hover:opacity-90 cursor-pointer transition-opacity">
+                      <Lock size={10} /> Advanced Filters
+                      <span className="bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full ml-1">Starter+</span>
+                    </button>
+                  )}
+                  <select value={sortF} onChange={e => { setSortF(e.target.value); setPage(1) }}
+                    className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    {[{v:'rating_desc',l:'Rating ↓'},{v:'rating_asc',l:'Rating ↑'},{v:'reviews_desc',l:'Reviews ↓'},{v:'name_asc',l:'Name A–Z'},{v:'name_desc',l:'Name Z–A'}].map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                  </select>
                   <span className="ml-auto text-xs text-[var(--ds-muted)] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] px-3 py-2 rounded-lg font-semibold">{filtered.length} leads</span>
                 </div>
 
-                {/* Bulk bar */}
-                {selected.size > 0 && (
+                {/* Bulk bar - Pro+ only */}
+                {isPro && selected.size > 0 && (
                   <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm"
                     style={{background:'linear-gradient(135deg,rgba(163,230,53,0.07),rgba(74,222,128,0.04))',borderColor:'rgba(163,230,53,0.2)'}}>
                     <span className="text-[#A3E635] font-bold text-xs">{selected.size} selected</span>
@@ -726,6 +801,15 @@ function DashboardInner() {
                     <button onClick={() => setSelected(new Set())} className="ml-auto text-[var(--ds-muted)] hover:text-[var(--ds-text)] cursor-pointer"><X size={14} /></button>
                   </div>
                 )}
+                {!isPro && (
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => router.push('/dashboard/billing')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[var(--ds-bd1)] text-[var(--ds-muted)] opacity-60 hover:opacity-90 cursor-pointer transition-opacity">
+                      <Lock size={10} /> Bulk Actions
+                      <span className="bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full ml-1">Pro+</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Table */}
                 <div className="rounded-[14px] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] overflow-hidden">
@@ -733,7 +817,7 @@ function DashboardInner() {
                     <table className="w-full text-sm" style={{minWidth:'960px'}}>
                       <thead>
                         <tr className="bg-[var(--ds-bg1)] border-b border-[var(--ds-bd1)]">
-                          <th className="p-3 w-9"><input type="checkbox" onChange={selectAll} checked={selected.size===filtered.length && filtered.length>0} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></th>
+                          {isPro && <th className="p-3 w-9"><input type="checkbox" onChange={selectAll} checked={selected.size===filtered.length && filtered.length>0} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></th>}
                           {['Business Name','Phone','Address','Rating','Reviews','Website','Category','Status','Actions'].map(h => (
                             <th key={h} className="px-3 py-3 text-left text-[10.5px] text-[var(--ds-muted)] uppercase tracking-[1.5px] font-bold whitespace-nowrap">{h}</th>
                           ))}
@@ -741,12 +825,12 @@ function DashboardInner() {
                       </thead>
                       <tbody>
                         {paged.length === 0 ? (
-                          <tr><td colSpan={10} className="py-12 text-center text-xs text-[var(--ds-muted)]">No leads match your filters</td></tr>
+                          <tr><td colSpan={isPro ? 10 : 9} className="py-12 text-center text-xs text-[var(--ds-muted)]">No leads match your filters</td></tr>
                         ) : paged.map((lead, i) => {
                           const realIdx = (page - 1) * PER_PAGE + i
                           return (
                             <tr key={realIdx} className={`border-b border-[var(--ds-bg3)]/60 transition-colors hover:bg-[#A3E635]/[0.02] ${selected.has(realIdx) ? 'bg-[#A3E635]/[0.04]' : ''}`}>
-                              <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></td>
+                              {isPro && <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></td>}
                               <td className="px-3 py-3 max-w-[170px]">
                                 <div className="font-semibold text-[var(--ds-text)] truncate" title={lead.name}>{lead.name}</div>
                               </td>

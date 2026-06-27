@@ -4,7 +4,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Users, CreditCard, Settings, LogOut, User, Mail, Lock, KeyRound, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Search, Users, CreditCard, Settings, LogOut, User, Mail, Lock, KeyRound, CheckCircle, AlertCircle, Eye, EyeOff, X } from 'lucide-react'
 
 type Toast = { msg: string; ok: boolean } | null
 
@@ -34,14 +34,44 @@ export default function SettingsPage() {
   const [signOutConfirm, setSignOutConfirm] = useState(false)
   const [usage, setUsage] = useState<{ plan: string; label?: string; leadsUsed: number; leadsLimit: number; percentUsed: number; daysLeft: number } | null>(null)
 
+  type ApiKey = { id: number; name: string; key_prefix: string; last_used_at: string | null; created_at: string }
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
+  const [newKeyName, setNewKeyName] = useState('')
+  const [creatingKey, setCreatingKey] = useState(false)
+  const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
+
+  const isBusiness = ['business', 'admin'].includes(usage?.plan || '')
+
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3500)
   }
 
   useEffect(() => {
-    fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => { if (d) setUsage(d) })
+    fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => {
+      if (d) {
+        setUsage(d)
+        if (['business', 'admin'].includes(d.plan)) {
+          fetch('/api/user/api-keys').then(r => r.ok ? r.json() : []).then(keys => setApiKeys(keys))
+        }
+      }
+    })
   }, [])
+
+  async function createApiKey() {
+    setCreatingKey(true)
+    const res = await fetch('/api/user/api-keys', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: newKeyName || 'My API Key' }) })
+    const d = await res.json()
+    setCreatingKey(false)
+    if (res.ok) { setNewKeyValue(d.key); setNewKeyName(''); fetch('/api/user/api-keys').then(r => r.json()).then(setApiKeys) }
+    else showToast(d.error || 'Failed to create key', false)
+  }
+
+  async function revokeApiKey(id: number) {
+    await fetch('/api/user/api-keys', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id }) })
+    setApiKeys(prev => prev.filter(k => k.id !== id))
+    showToast('API key revoked')
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
@@ -350,6 +380,64 @@ export default function SettingsPage() {
                   Sign Out
                 </button>
               </div>
+            </div>
+
+            {/* API Keys — Business+ */}
+            <div className="rounded-2xl border border-[var(--ds-bd1)] bg-[var(--ds-bg1)] overflow-hidden">
+              <div className="px-6 py-4 border-b border-[var(--ds-bd1)] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <KeyRound size={15} className="text-[#A3E635]" />
+                  <span className="text-[var(--ds-text)] font-semibold text-sm">API Keys</span>
+                  {!isBusiness && <span className="text-[9px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full font-bold">Business+</span>}
+                </div>
+              </div>
+              {!isBusiness ? (
+                <div className="px-6 py-8 text-center">
+                  <Lock size={22} className="text-[var(--ds-muted)] mx-auto mb-3" />
+                  <p className="text-sm text-[var(--ds-text)] font-semibold mb-1">API Access — Business Plan</p>
+                  <p className="text-xs text-[var(--ds-muted)] mb-4">Generate API keys to integrate LeadFrog into your own tools and workflows.</p>
+                  <Link href="/dashboard/billing" className="inline-flex items-center gap-2 px-5 py-2 rounded-xl btn-lime text-sm font-semibold">Upgrade to Business</Link>
+                </div>
+              ) : (
+                <div className="px-6 py-5 space-y-4">
+                  {newKeyValue && (
+                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1.5">New API Key — copy it now, it won&apos;t be shown again</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 font-mono text-xs text-[var(--ds-text)] bg-[var(--ds-bg2)] px-3 py-2 rounded-lg overflow-x-auto">{newKeyValue}</code>
+                        <button onClick={() => { navigator.clipboard.writeText(newKeyValue); showToast('Copied!') }}
+                          className="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer whitespace-nowrap">Copy</button>
+                        <button onClick={() => setNewKeyValue(null)} className="text-[var(--ds-muted)] hover:text-[var(--ds-text)] cursor-pointer"><X size={14} /></button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="Key name (e.g. My App)"
+                      className="input-dark flex-1 px-3 py-2 rounded-lg text-sm" />
+                    <button onClick={createApiKey} disabled={creatingKey}
+                      className="btn-lime px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 cursor-pointer whitespace-nowrap">
+                      {creatingKey ? 'Generating…' : '+ Generate Key'}
+                    </button>
+                  </div>
+                  {apiKeys.length > 0 ? (
+                    <div className="space-y-2">
+                      {apiKeys.map(k => (
+                        <div key={k.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--ds-bg2)] border border-[var(--ds-bd1)]">
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--ds-text)]">{k.name}</div>
+                            <div className="text-[10px] text-[var(--ds-muted)] font-mono mt-0.5">lf_{k.key_prefix}_••••••••••••••••</div>
+                            <div className="text-[9px] text-[var(--ds-muted)] mt-0.5">Created {new Date(k.created_at).toLocaleDateString('en-IN')}{k.last_used_at ? ` · Last used ${new Date(k.last_used_at).toLocaleDateString('en-IN')}` : ' · Never used'}</div>
+                          </div>
+                          <button onClick={() => revokeApiKey(k.id)}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-red-500/20 text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors">Revoke</button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--ds-muted)] text-center py-2">No API keys yet.</p>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>
