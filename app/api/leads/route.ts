@@ -3,27 +3,33 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getUserId(session: any): number {
+  const id = session?.user?.id
+  return parseInt(id || '0', 10) || 0
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const userId = getUserId(session)
+  if (!userId) return NextResponse.json({ leads: [] })
+
   const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status')
+  const statusParam = searchParams.get('status')
   const keyword = searchParams.get('keyword')
-  const page = Number(searchParams.get('page') || 1)
-  const limit = Number(searchParams.get('limit') || 50)
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
+  const limit = Math.max(1, parseInt(searchParams.get('limit') || '200', 10))
   const offset = (page - 1) * limit
 
-  const userId = parseInt((session.user as { id?: string }).id || '0')
-  if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
-
   let sql = 'SELECT * FROM leads WHERE user_id = ?'
-  const params: unknown[] = [userId]
+  const params: (string | number)[] = [userId]
 
-  if (status) { sql += ' AND status = ?'; params.push(status) }
+  if (statusParam) { sql += ' AND status = ?'; params.push(statusParam) }
   if (keyword) { sql += ' AND (name LIKE ? OR category LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`) }
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
-  params.push(limit, offset)
+  // Inline LIMIT/OFFSET to avoid prepared-statement binding issues
+  sql += ` ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
 
   const leads = await query(sql, params)
   return NextResponse.json({ leads })
@@ -33,15 +39,16 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
-  const userId = parseInt((session.user as { id?: string }).id || '0')
+  const userId = getUserId(session)
   if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+
+  const body = await req.json()
 
   if (Array.isArray(body)) {
     for (const lead of body) {
       await query(
         'INSERT INTO leads (user_id,name,phone,email,address,website,category,rating,reviews,keyword,location) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-        [userId, lead.name, lead.phone, lead.email, lead.address, lead.website, lead.category, lead.rating, lead.reviews, lead.keyword, lead.location]
+        [userId, lead.name, lead.phone ?? null, lead.email ?? null, lead.address, lead.website ?? null, lead.category, lead.rating ?? null, lead.reviews ?? 0, lead.keyword, lead.location]
       )
     }
     return NextResponse.json({ saved: body.length })
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   await query(
     'INSERT INTO leads (user_id,name,phone,email,address,website,category,rating,reviews,keyword,location) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-    [userId, body.name, body.phone, body.email, body.address, body.website, body.category, body.rating, body.reviews, body.keyword, body.location]
+    [userId, body.name, body.phone ?? null, body.email ?? null, body.address, body.website ?? null, body.category, body.rating ?? null, body.reviews ?? 0, body.keyword, body.location]
   )
   return NextResponse.json({ success: true })
 }
@@ -58,9 +65,10 @@ export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { ids } = await req.json()
-  const userId = parseInt((session.user as { id?: string }).id || '0')
+  const userId = getUserId(session)
   if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+
+  const { ids } = await req.json()
   if (ids === 'all') {
     await query('DELETE FROM leads WHERE user_id = ?', [userId])
   } else if (Array.isArray(ids)) {
