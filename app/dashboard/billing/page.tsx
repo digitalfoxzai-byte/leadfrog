@@ -219,13 +219,7 @@ export default function BillingPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
-    return (
-      <div className="min-h-screen bg-[var(--ds-bg0)] flex items-center justify-center">
-        <Loader2 size={30} className="animate-spin text-[#4ADE80]" />
-      </div>
-    )
-  }
+  if (status === 'unauthenticated') return null
 
   const usageStats = [
     {
@@ -305,6 +299,11 @@ export default function BillingPage() {
 
       {/* Main */}
       <div className="flex-1 overflow-y-auto scrollbar-dark">
+        {(status === 'loading' || loading) ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 size={30} className="animate-spin text-[#4ADE80]" />
+          </div>
+        ) : (
         <div className="max-w-5xl mx-auto px-8 py-8 space-y-8">
 
           {/* Header */}
@@ -608,6 +607,7 @@ export default function BillingPage() {
           </div>
 
         </div>
+        )}
       </div>
 
       {/* Toast */}

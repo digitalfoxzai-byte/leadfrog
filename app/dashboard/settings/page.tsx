@@ -111,9 +111,7 @@ export default function SettingsPage() {
     { label: 'Settings', icon: Settings,   href: '/dashboard/settings', active: true },
   ]
 
-  if (status === 'loading' || loading) {
-    return <div className="min-h-screen bg-[var(--ds-bg0)] flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#A3E635]/30 border-t-[#A3E635] rounded-full animate-spin" /></div>
-  }
+  if (status === 'unauthenticated') return null
 
   return (
     <div className="flex h-screen bg-[var(--ds-bg0)] overflow-hidden">
@@ -163,7 +161,12 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        <main className="flex-1 overflow-y-auto p-6">
+          {(status === 'loading' || loading) ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="w-6 h-6 border-2 border-[#A3E635]/30 border-t-[#A3E635] rounded-full animate-spin" />
+            </div>
+          ) : (
           <div className="max-w-2xl space-y-5">
 
             {/* Profile — Name */}
@@ -316,6 +319,7 @@ export default function SettingsPage() {
             </div>
 
           </div>
+          )}
         </main>
       </div>
 
