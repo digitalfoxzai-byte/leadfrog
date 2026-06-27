@@ -51,6 +51,11 @@ export default function DashboardPage() {
     setPage(1)
   }, [leads, statusFilter, catFilter, search])
 
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    fetch('/api/leads').then(r => r.json()).then(d => { if (d.leads) setLeads(d.leads) })
+  }, [status])
+
   const startScrape = useCallback(async () => {
     if (!form.keyword || !form.location) return
     setScraping(true); setProgress(0)
