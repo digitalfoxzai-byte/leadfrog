@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [savingPw, setSavingPw] = useState(false)
 
   const [toast, setToast] = useState<Toast>(null)
+  const [signOutConfirm, setSignOutConfirm] = useState(false)
   const [usage, setUsage] = useState<{ plan: string; label?: string; leadsUsed: number; leadsLimit: number; percentUsed: number; daysLeft: number } | null>(null)
 
   function showToast(msg: string, ok = true) {
@@ -176,7 +177,7 @@ export default function SettingsPage() {
           </div>
         )}
         <div className="p-3 border-t border-[var(--ds-bd1)]">
-          <button onClick={() => signOut({ callbackUrl: '/login' })}
+          <button onClick={() => setSignOutConfirm(true)}
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-red-400 hover:bg-red-500/[0.05] transition-all text-[13px] cursor-pointer">
             <LogOut size={14} /> Sign Out
           </button>
@@ -344,7 +345,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-[var(--ds-text)]">Sign out of your account on this device</p>
                   <p className="text-xs text-[var(--ds-muted)] mt-0.5">You will be redirected to the login page</p>
                 </div>
-                <button onClick={() => signOut({ callbackUrl: '/login' })}
+                <button onClick={() => setSignOutConfirm(true)}
                   className="px-5 py-2 rounded-lg text-xs font-semibold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer">
                   Sign Out
                 </button>
@@ -355,6 +356,27 @@ export default function SettingsPage() {
           )}
         </main>
       </div>
+
+      {/* Sign Out Confirm */}
+      {signOutConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center">
+          <div className="bg-[var(--ds-bg2)] border border-[var(--ds-bd2)] rounded-2xl w-[340px] overflow-hidden shadow-2xl">
+            <div className="flex justify-center pt-6">
+              <div className="w-12 h-12 rounded-[14px] bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <LogOut size={22} className="text-red-400" />
+              </div>
+            </div>
+            <div className="px-6 pb-4 pt-3 text-center">
+              <div className="text-base font-bold text-[var(--ds-text)] mb-1.5">Sign Out?</div>
+              <div className="text-xs text-[var(--ds-muted)] leading-relaxed">You'll need to sign in again to access your dashboard.</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 px-6 pb-5">
+              <button onClick={() => setSignOutConfirm(false)} className="py-2.5 rounded-xl border border-[var(--ds-bd2)] text-[var(--ds-dim)] text-sm font-semibold hover:text-[var(--ds-text)] hover:bg-white/[0.05] cursor-pointer transition-all">Cancel</button>
+              <button onClick={() => signOut({ callbackUrl: '/login' })} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-white text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">Sign Out</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

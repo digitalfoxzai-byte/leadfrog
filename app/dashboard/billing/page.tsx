@@ -113,6 +113,7 @@ export default function BillingPage() {
   const [expandedInv, setExpandedInv] = useState<number | null>(null)
   const [paying, setPaying]       = useState<string | null>(null)
   const [toast, setToast]         = useState<{ msg: string; ok: boolean } | null>(null)
+  const [signOutConfirm, setSignOutConfirm] = useState(false)
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok })
@@ -312,7 +313,7 @@ export default function BillingPage() {
               <Settings size={14} /> Admin
             </button>
           )}
-          <button onClick={() => signOut({ callbackUrl: '/login' })}
+          <button onClick={() => setSignOutConfirm(true)}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[var(--ds-muted)] hover:text-red-400 hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
             <LogOut size={14} /> Sign Out
           </button>
@@ -631,6 +632,27 @@ export default function BillingPage() {
         </div>
         )}
       </div>
+
+      {/* Sign Out Confirm */}
+      {signOutConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center">
+          <div className="bg-[var(--ds-bg2)] border border-[var(--ds-bd2)] rounded-2xl w-[340px] overflow-hidden shadow-2xl">
+            <div className="flex justify-center pt-6">
+              <div className="w-12 h-12 rounded-[14px] bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <LogOut size={22} className="text-red-400" />
+              </div>
+            </div>
+            <div className="px-6 pb-4 pt-3 text-center">
+              <div className="text-base font-bold text-[var(--ds-text)] mb-1.5">Sign Out?</div>
+              <div className="text-xs text-[var(--ds-muted)] leading-relaxed">You'll need to sign in again to access your dashboard.</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 px-6 pb-5">
+              <button onClick={() => setSignOutConfirm(false)} className="py-2.5 rounded-xl border border-[var(--ds-bd2)] text-[var(--ds-dim)] text-sm font-semibold hover:text-[var(--ds-text)] hover:bg-white/[0.05] cursor-pointer transition-all">Cancel</button>
+              <button onClick={() => signOut({ callbackUrl: '/login' })} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-white text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">Sign Out</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
