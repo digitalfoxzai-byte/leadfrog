@@ -509,7 +509,7 @@ export default function DashboardPage() {
                     <span className="text-[#4B6856]">{planStatus.label}</span>
                     <div className="w-px h-3 bg-[#122016]" />
                     <span className={planStatus.leadsRemaining <= 5 ? 'text-red-400 font-semibold' : 'text-[#4ADE80] font-semibold'}>
-                      {planStatus.leadsRemaining} left
+                      {planStatus.leadsRemaining} leads left
                     </span>
                     {planStatus.plan === 'free' && planStatus.daysLeft > 0 && (
                       <><div className="w-px h-3 bg-[#122016]" /><span className="text-amber-400 font-semibold">{planStatus.daysLeft}d trial</span></>
