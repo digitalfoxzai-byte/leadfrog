@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import {
   Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe,
@@ -385,12 +386,12 @@ function DashboardInner() {
           </button>
           <div className="h-px bg-[var(--ds-bd1)] my-2" />
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Account</div>
-          <button onClick={() => router.push('/dashboard/billing')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+          <Link href="/dashboard/billing" className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] border-l-2 border-transparent text-[13.5px] font-medium">
             <CreditCard size={14} /> Billing
-          </button>
-          <button onClick={() => router.push('/dashboard/settings')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+          </Link>
+          <Link href="/dashboard/settings" className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] border-l-2 border-transparent text-[13.5px] font-medium">
             <Settings size={14} /> Settings
-          </button>
+          </Link>
           {!planBlocked && (
             <>
               <div className="h-px bg-[var(--ds-bd1)] my-2" />

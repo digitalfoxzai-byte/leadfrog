@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { Search, Users, CreditCard, Settings, LogOut, User, Mail, Lock, KeyRound, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
@@ -38,8 +39,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
-    if (status !== 'authenticated') return
-    fetch('/api/user/settings').then(r => r.json()).then(d => {
+    fetch('/api/user/settings').then(r => {
+      if (!r.ok) return null
+      return r.json()
+    }).then(d => {
+      if (!d) return
       setProfile(d)
       setName(d.name || '')
       setLoading(false)
@@ -125,21 +129,23 @@ export default function SettingsPage() {
         <nav className="flex-1 p-3 text-sm overflow-hidden">
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
           {navItems.map(({ label, icon: Icon, href }) => (
-            <button key={label} onClick={() => router.push(href)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
+            <Link key={label} href={href}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
               <Icon size={14} /> {label}
-            </button>
+            </Link>
           ))}
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 mt-3 font-semibold">Account</div>
           {accountItems.map(({ label, icon: Icon, href, active }) => (
-            <button key={label} onClick={() => router.push(href)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${
-                active
-                  ? 'border-[#A3E635] bg-[#A3E635]/[0.06] text-[#A3E635]'
-                  : 'border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03]'
-              }`}>
-              <Icon size={14} /> {label}
-            </button>
+            active ? (
+              <span key={label} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-2 border-[#A3E635] bg-[#A3E635]/[0.06] text-[#A3E635] text-[13.5px] font-medium">
+                <Icon size={14} /> {label}
+              </span>
+            ) : (
+              <Link key={label} href={href}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
+                <Icon size={14} /> {label}
+              </Link>
+            )
           ))}
         </nav>
         <div className="p-3 border-t border-[var(--ds-bd1)]">

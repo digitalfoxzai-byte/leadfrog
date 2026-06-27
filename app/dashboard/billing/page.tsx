@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -137,8 +138,8 @@ export default function BillingPage() {
   }, [status, session, router])
 
   useEffect(() => {
-    if (status === 'authenticated') fetchData()
-  }, [status, fetchData])
+    fetchData()
+  }, [fetchData])
 
   const currentPlan    = usage?.plan || 'free'
   const plans          = PLANS[cycle]
@@ -267,21 +268,20 @@ export default function BillingPage() {
             { label: 'Scraper',   icon: Search, href: '/dashboard' },
             { label: 'All Leads', icon: Users,  href: '/dashboard?view=leads' },
           ].map(({ label, icon: Icon, href }) => (
-            <button key={label} onClick={() => router.push(href)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
+            <Link key={label} href={href}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
               <Icon size={14} /> {label}
-            </button>
+            </Link>
           ))}
           <div className="h-px bg-[var(--ds-bd1)] my-2" />
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Account</div>
-          <button
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 border-[#A3E635] bg-[var(--ds-active-bg)] text-[#A3E635] text-[13.5px] font-medium">
+          <span className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-2 border-[#A3E635] bg-[var(--ds-active-bg)] text-[#A3E635] text-[13.5px] font-medium">
             <CreditCard size={14} /> Billing
-          </button>
-          <button onClick={() => router.push('/dashboard/settings')}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
+          </span>
+          <Link href="/dashboard/settings"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-l-2 border-transparent text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
             <Settings size={14} /> Settings
-          </button>
+          </Link>
         </nav>
         <div className="p-3 space-y-1 text-sm border-t border-[var(--ds-bd1)]">
           {(session?.user as { role?: string })?.role === 'admin' && (
