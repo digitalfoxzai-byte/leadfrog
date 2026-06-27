@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -49,7 +50,24 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { orderId, paymentId, plan, cycle = 'monthly' } = await req.json()
+  const { orderId, paymentId, signature, plan, cycle = 'monthly' } = await req.json()
+
+  // Validate plan before anything else
+  if (!PLANS[plan]) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  if (!orderId || !paymentId || !signature) {
+    return NextResponse.json({ error: 'Missing payment fields' }, { status: 400 })
+  }
+
+  // Verify Razorpay signature — prevents fake payment activation
+  const settings = await query<{ key: string; value: string }[]>(
+    'SELECT `key`, `value` FROM settings WHERE `key` IN (?, ?)', ['razorpay_key_id', 'razorpay_key_secret']
+  )
+  const keySecret = settings.find(s => s.key === 'razorpay_key_secret')?.value || process.env.RAZORPAY_KEY_SECRET || ''
+  const expectedSig = crypto.createHmac('sha256', keySecret).update(`${orderId}|${paymentId}`).digest('hex')
+  if (expectedSig !== signature) {
+    return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 })
+  }
+
   const userId = (session.user as { id?: string }).id
   const expires = new Date()
   if (cycle === 'annual') expires.setFullYear(expires.getFullYear() + 1)

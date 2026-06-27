@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
-  role ENUM('user','admin') DEFAULT 'user',
+  role ENUM('user','admin','banned') DEFAULT 'user',
   plan ENUM('free','starter','pro','business') DEFAULT 'free',
   plan_expires_at DATETIME NULL,
   scrape_count INT DEFAULT 0,

@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
 
   if (Array.isArray(body)) {
+    if (body.length > 100) return NextResponse.json({ error: 'Too many leads in one request' }, { status: 400 })
     for (const lead of body) {
       await query(
         'INSERT INTO leads (user_id,name,phone,email,address,website,category,rating,reviews,keyword,location) VALUES (?,?,?,?,?,?,?,?,?,?,?)',

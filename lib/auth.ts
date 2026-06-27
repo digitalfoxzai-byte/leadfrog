@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
         if (!user) return null
         const valid = await bcrypt.compare(credentials.password, user.password)
         if (!valid) return null
+        if (user.role === 'banned') return null
         return { id: String(user.id), name: user.name, email: user.email, role: user.role, plan: user.plan }
       },
     }),

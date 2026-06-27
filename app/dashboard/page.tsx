@@ -174,10 +174,10 @@ function DashboardInner() {
         name: 'LeadFrog', description: `${planName} Plan — Monthly`,
         prefill: { email: session?.user?.email || '' },
         theme: { color: '#A3E635' },
-        handler: async (response: { razorpay_payment_id: string }) => {
+        handler: async (response: { razorpay_payment_id: string; razorpay_signature: string }) => {
           await fetch('/api/payment', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, paymentId: response.razorpay_payment_id, plan: planKey }),
+            body: JSON.stringify({ orderId, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature, plan: planKey }),
           })
           window.location.reload()
         },

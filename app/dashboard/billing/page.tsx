@@ -163,10 +163,10 @@ export default function BillingPage() {
         name: 'LeadFrog', description: planName,
         prefill: { email: session?.user?.email || '', name: usage?.name || '' },
         theme: { color: '#A3E635' },
-        handler: async (response: { razorpay_payment_id: string }) => {
+        handler: async (response: { razorpay_payment_id: string; razorpay_signature: string }) => {
           const verifyRes = await fetch('/api/payment', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, paymentId: response.razorpay_payment_id, plan: planKey, cycle }),
+            body: JSON.stringify({ orderId, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature, plan: planKey, cycle }),
           })
           if (verifyRes.ok) {
             showToast(`Upgraded to ${planName}! Dashboard is now active.`)
@@ -202,10 +202,10 @@ export default function BillingPage() {
         name: 'LeadFrog', description: `Invoice – ${planName}`,
         prefill: { email: session?.user?.email || '', name: usage?.name || '' },
         theme: { color: '#A3E635' },
-        handler: async (response: { razorpay_payment_id: string }) => {
+        handler: async (response: { razorpay_payment_id: string; razorpay_signature: string }) => {
           await fetch('/api/payment', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, paymentId: response.razorpay_payment_id, plan: inv.plan, cycle: inv.cycle === 'Annual' ? 'annual' : 'monthly' }),
+            body: JSON.stringify({ orderId, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature, plan: inv.plan, cycle: inv.cycle === 'Annual' ? 'annual' : 'monthly' }),
           })
           showToast('Payment successful!')
           await fetchData()
