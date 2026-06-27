@@ -269,19 +269,25 @@ export default function DashboardPage() {
                   return (
                     <tr key={realIdx} className={`border-b border-[#0A110B] hover:bg-[#0A110B]/50 transition-colors ${selected.has(realIdx) ? 'bg-[#A3E635]/5' : ''}`}>
                       <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635]" /></td>
-                      <td className="p-3 font-medium text-white">{lead.name}</td>
-                      <td className="p-3 text-[#94A3B8]">{lead.phone}</td>
-                      <td className="p-3 text-[#94A3B8] text-xs max-w-[180px] truncate">{lead.address}</td>
-                      <td className="p-3">
+                      <td className="p-3 max-w-[220px]">
+                        <div className="font-medium text-white truncate" title={lead.name}>{lead.name}</div>
+                      </td>
+                      <td className="p-3 text-[#94A3B8] whitespace-nowrap text-sm">{lead.phone || '—'}</td>
+                      <td className="p-3 text-[#94A3B8] text-xs max-w-[180px]">
+                        <div className="truncate" title={lead.address}>{lead.address}</div>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
                         <div className="flex items-center gap-1 text-[#94A3B8]">
                           <Star size={12} className="text-amber-400 fill-amber-400" />
                           {lead.rating} <span className="text-[#4B6856] text-xs">({lead.reviews})</span>
                         </div>
                       </td>
-                      <td className="p-3 text-xs text-[#A3E635] truncate max-w-[120px]">{lead.website || '—'}</td>
-                      <td className="p-3 text-xs text-[#94A3B8]">{lead.category}</td>
+                      <td className="p-3 text-xs max-w-[130px]">
+                        <div className="truncate text-[#A3E635]" title={lead.website || ''}>{lead.website || '—'}</div>
+                      </td>
+                      <td className="p-3 text-xs text-[#94A3B8] whitespace-nowrap">{lead.category}</td>
                       <td className="p-3">
-                        <button onClick={() => cycleStatus(realIdx)} className={`px-2 py-1 rounded-full text-xs border cursor-pointer ${STATUS_COLORS[lead.status] || STATUS_COLORS.new}`}>
+                        <button onClick={() => cycleStatus(realIdx)} className={`px-2 py-1 rounded-full text-xs border cursor-pointer whitespace-nowrap ${STATUS_COLORS[lead.status] || STATUS_COLORS.new}`}>
                           {lead.status}
                           <ChevronDown size={10} className="inline ml-1" />
                         </button>
