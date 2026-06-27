@@ -56,17 +56,14 @@ export function emailTemplate(title: string, bodyHtml: string): string {
 export async function sendAdminMail(subject: string, html: string): Promise<boolean> {
   const cfg = await getSmtpSettings()
   if (!cfg || !cfg.adminEmail) return false
-  return sendMail(cfg.adminEmail, subject, html)
+  return sendMailWithConfig(cfg, cfg.adminEmail, subject, html)
 }
 
-export async function sendMail(
-  to: string, subject: string, html: string, attachments?: MailAttachment[]
+type SmtpConfig = NonNullable<Awaited<ReturnType<typeof getSmtpSettings>>>
+
+async function sendMailWithConfig(
+  cfg: SmtpConfig, to: string, subject: string, html: string, attachments?: MailAttachment[]
 ): Promise<boolean> {
-  const cfg = await getSmtpSettings()
-  if (!cfg) {
-    console.warn('[LeadFrog mailer] SMTP not configured — skipped:', subject)
-    return false
-  }
   try {
     const text = html
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -95,4 +92,15 @@ export async function sendMail(
     console.error('[LeadFrog mailer] sendMail failed:', err)
     return false
   }
+}
+
+export async function sendMail(
+  to: string, subject: string, html: string, attachments?: MailAttachment[]
+): Promise<boolean> {
+  const cfg = await getSmtpSettings()
+  if (!cfg) {
+    console.warn('[LeadFrog mailer] SMTP not configured — skipped:', subject)
+    return false
+  }
+  return sendMailWithConfig(cfg, to, subject, html, attachments)
 }
