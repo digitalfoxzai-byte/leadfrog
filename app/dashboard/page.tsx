@@ -1,9 +1,12 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe, ChevronDown, X, Star, RefreshCw, Settings } from 'lucide-react'
+import {
+  Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe,
+  ChevronDown, ChevronUp, X, Star, RefreshCw, Settings, Eye, FileJson
+} from 'lucide-react'
 
 interface Lead {
   id?: number; name: string; phone: string; email?: string; address: string
@@ -11,32 +14,54 @@ interface Lead {
   status: string; keyword?: string; location?: string
 }
 
-const CATEGORIES = ['All Categories','Beauty & Hair','Food & Dining','Healthcare','Hospitality','Fitness & Wellness','Real Estate','Marketing & Advertising','Education','Dental Care']
 const STATUS_OPTS = ['all','new','contacted','qualified','converted','lost']
 const STATUS_COLORS: Record<string, string> = {
-  new: 'bg-[#A3E635]/10 text-[#A3E635] border-[#A3E635]/20',
-  contacted: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  qualified: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  converted: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  lost: 'bg-red-500/10 text-red-400 border-red-500/20',
+  new:       'bg-[#A3E635]/10 text-[#A3E635] border-[#A3E635]/20',
+  contacted: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  qualified: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  converted: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  lost:      'bg-red-500/10 text-red-400 border-red-500/20',
 }
+const SCRAPER_CATS = ['All Categories','Beauty & Wellness','Food & Restaurant','Healthcare','Hotels & Hospitality','Fitness & Wellness','Real Estate','Digital Marketing','Education','Dental Care']
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+
+  // Data
   const [leads, setLeads] = useState<Lead[]>([])
-  const [filtered, setFiltered] = useState<Lead[]>([])
   const [scraping, setScraping] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [progressTxt, setProgressTxt] = useState('Initializing...')
+
+  // Scraper form
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [form, setForm] = useState({
+    keyword: '', location: '', maxResults: '20',
+    minRating: '0', minReviews: '0', strategy: 'fast',
+    hasWebsite: false, hasPhone: false,
+  })
+
+  // Filters
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [catFilter, setCatFilter] = useState('All Categories')
+  const [ratingFilter, setRatingFilter] = useState('0')
+  const [webFilter, setWebFilter] = useState('all')
+  const [sortF, setSortF] = useState('rating_desc')
+
+  // UI
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [form, setForm] = useState({ keyword: '', location: '', maxResults: '20' })
-  const [delConfirm, setDelConfirm] = useState(false)
   const [view, setView] = useState<'scraper'|'leads'>('scraper')
   const [page, setPage] = useState(1)
+  const [delConfirm, setDelConfirm] = useState(false)
+  const [modalLead, setModalLead] = useState<Lead | null>(null)
+  const [toast, setToast] = useState<{msg:string;ok:boolean}|null>(null)
   const PER_PAGE = 25
+
+  const showToast = (msg: string, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -44,58 +69,32 @@ export default function DashboardPage() {
   }, [status, session, router])
 
   useEffect(() => {
-    let list = [...leads]
-    if (statusFilter !== 'all') list = list.filter(l => l.status === statusFilter)
-    if (catFilter !== 'All Categories') list = list.filter(l => l.category === catFilter)
-    if (search) list = list.filter(l => l.name.toLowerCase().includes(search.toLowerCase()) || (l.phone||'').includes(search))
-    setFiltered(list)
-    setPage(1)
-  }, [leads, statusFilter, catFilter, search])
-
-  useEffect(() => {
     if (status !== 'authenticated') return
     fetch('/api/leads').then(r => r.json()).then(d => { if (d.leads) setLeads(d.leads) })
   }, [status])
 
-  const startScrape = useCallback(async () => {
-    if (!form.keyword || !form.location) return
-    setScraping(true); setProgress(0)
-    const tick = setInterval(() => setProgress(p => Math.min(p + 4, 90)), 200)
-    try {
-      const res = await fetch('/api/scrape', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: form.keyword, location: form.location, maxResults: Number(form.maxResults) }),
-      })
-      const data = await res.json()
-      clearInterval(tick); setProgress(100)
-      setLeads(prev => [...data.leads, ...prev])
-      await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data.leads) })
-    } finally {
-      clearInterval(tick)
-      setTimeout(() => { setScraping(false); setProgress(0) }, 600)
-    }
-  }, [form])
-
-  const exportCSV = useCallback(() => {
-    const rows = [['Name','Phone','Email','Address','Website','Category','Rating','Reviews','Status']]
-    filtered.forEach(l => rows.push([l.name,l.phone,l.email||'',l.address,l.website||'',l.category,String(l.rating),String(l.reviews),l.status]))
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-    const a = document.createElement('a'); a.href = url; a.download = 'leadfrog_leads.csv'; a.click()
-  }, [filtered])
-
-  const deleteAll = useCallback(async () => {
-    await fetch('/api/leads', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: 'all' }) })
-    setLeads([]); setDelConfirm(false)
-  }, [])
-
-  const cycleStatus = useCallback((idx: number) => {
-    const order = ['new','contacted','qualified','converted','lost']
-    setLeads(prev => prev.map((l, i) => i === idx ? { ...l, status: order[(order.indexOf(l.status) + 1) % order.length] } : l))
-  }, [])
-
-  const toggleSelect = (i: number) => setSelected(s => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
-  const selectAll = () => setSelected(filtered.length === selected.size ? new Set() : new Set(filtered.map((_, i) => i)))
+  // Filtered + sorted leads
+  const filtered = useMemo(() => {
+    let list = [...leads]
+    if (statusFilter !== 'all') list = list.filter(l => l.status === statusFilter)
+    if (webFilter === 'yes') list = list.filter(l => l.website)
+    if (webFilter === 'no') list = list.filter(l => !l.website)
+    if (ratingFilter !== '0') list = list.filter(l => (l.rating || 0) >= Number(ratingFilter))
+    if (search) list = list.filter(l =>
+      l.name.toLowerCase().includes(search.toLowerCase()) ||
+      (l.phone||'').includes(search) ||
+      (l.address||'').toLowerCase().includes(search.toLowerCase())
+    )
+    list.sort((a, b) => {
+      if (sortF === 'rating_desc') return (b.rating||0) - (a.rating||0)
+      if (sortF === 'rating_asc')  return (a.rating||0) - (b.rating||0)
+      if (sortF === 'reviews_desc') return (b.reviews||0) - (a.reviews||0)
+      if (sortF === 'name_asc')  return a.name.localeCompare(b.name)
+      if (sortF === 'name_desc') return b.name.localeCompare(a.name)
+      return 0
+    })
+    return list
+  }, [leads, statusFilter, webFilter, ratingFilter, search, sortF])
 
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
@@ -107,37 +106,123 @@ export default function DashboardPage() {
     hasWebsite: leads.filter(l => l.website).length,
   }
 
+  const startScrape = useCallback(async () => {
+    if (!form.keyword || !form.location) return
+    setScraping(true); setProgress(0)
+    const steps = ['Connecting to Google Maps...','Searching businesses...','Fetching details...','Processing results...']
+    let step = 0
+    setProgressTxt(steps[0])
+    const tick = setInterval(() => {
+      setProgress(p => {
+        const next = Math.min(p + 2, 88)
+        if (next > 25 * (step + 1) && step < steps.length - 1) { step++; setProgressTxt(steps[step]) }
+        return next
+      })
+    }, 200)
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: form.keyword, location: form.location, maxResults: Number(form.maxResults) }),
+      })
+      const data = await res.json()
+      clearInterval(tick); setProgress(100); setProgressTxt('Done!')
+
+      if (data.error) { showToast(data.error, false); return }
+
+      // Client-side filters
+      let results: Lead[] = data.leads || []
+      if (Number(form.minRating) > 0) results = results.filter((l: Lead) => (l.rating||0) >= Number(form.minRating))
+      if (Number(form.minReviews) > 0) results = results.filter((l: Lead) => (l.reviews||0) >= Number(form.minReviews))
+      if (form.hasWebsite) results = results.filter((l: Lead) => l.website)
+      if (form.hasPhone) results = results.filter((l: Lead) => l.phone)
+
+      setLeads(prev => [...results, ...prev])
+      await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(results) })
+      showToast(`${results.length} leads scraped successfully`)
+    } catch {
+      showToast('Scraping failed. Please try again.', false)
+    } finally {
+      clearInterval(tick)
+      setTimeout(() => { setScraping(false); setProgress(0) }, 800)
+    }
+  }, [form])
+
+  const exportCSV = useCallback((rows?: Lead[]) => {
+    const data = rows || filtered
+    const header = ['Name','Phone','Email','Address','Website','Category','Rating','Reviews','Status']
+    const csv = [header, ...data.map(l => [l.name,l.phone||'',l.email||'',l.address,l.website||'',l.category,String(l.rating||''),String(l.reviews||''),l.status])]
+      .map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download = 'leadfrog_leads.csv'; a.click()
+  }, [filtered])
+
+  const exportJSON = useCallback(() => {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(filtered,null,2)],{type:'application/json'}))
+    a.download = 'leadfrog_leads.json'; a.click()
+  }, [filtered])
+
+  const deleteAll = useCallback(async () => {
+    await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:'all'}) })
+    setLeads([]); setDelConfirm(false); showToast('All leads cleared')
+  }, [])
+
+  const deleteLead = useCallback(async (idx: number) => {
+    const lead = filtered[idx]
+    if (lead?.id) await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids:[lead.id]}) })
+    setLeads(prev => prev.filter(l => l !== lead))
+  }, [filtered])
+
+  const cycleStatus = useCallback((idx: number) => {
+    const order = ['new','contacted','qualified','converted','lost']
+    const lead = filtered[idx]
+    setLeads(prev => prev.map(l => l === lead ? { ...l, status: order[(order.indexOf(l.status)+1)%order.length] } : l))
+  }, [filtered])
+
+  const bulkSetStatus = (s: string) => {
+    setLeads(prev => prev.map((l, i) => selected.has(i) ? {...l, status: s} : l))
+    setSelected(new Set()); showToast(`${selected.size} leads marked as ${s}`)
+  }
+  const bulkExport = () => exportCSV(Array.from(selected).map(i => filtered[i]).filter(Boolean))
+
+  const toggleSelect = (i: number) => setSelected(s => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
+  const selectAll = () => setSelected(selected.size === filtered.length && filtered.length > 0 ? new Set() : new Set(filtered.map((_,i)=>i)))
+
   if (status === 'loading') return <div className="min-h-screen bg-[#050A06] flex items-center justify-center text-[#4B6856]">Loading...</div>
 
   return (
     <div className="flex h-screen bg-[#050A06] overflow-hidden">
+
       {/* Sidebar */}
-      <aside className="w-52 shrink-0 flex flex-col border-r border-[#122016] bg-[#070D08]">
-        <div className="p-4 border-b border-[#122016] flex flex-col items-center gap-2">
+      <aside className="w-[220px] shrink-0 flex flex-col border-r border-[#122016] bg-[#070D08]">
+        <div className="p-4 border-b border-[#122016] flex flex-col items-center gap-1.5">
           <Image src="/logo.png" alt="LeadFrog" width={110} height={44} className="object-contain" />
-          <span className="text-[8px] text-[#4B6856] tracking-widest uppercase">Lead Intelligence</span>
+          <span className="text-[8px] text-[#4B6856] tracking-[2px] uppercase">Lead Intelligence</span>
         </div>
-        <nav className="flex-1 p-3 space-y-1 text-sm">
-          <div className="text-[10px] text-[#4B6856] uppercase tracking-wider px-3 py-2">Workspace</div>
-          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left cursor-pointer transition-colors ${view === 'scraper' ? 'bg-[#0A1F0C] text-[#A3E635]' : 'text-[#94A3B8] hover:text-white hover:bg-[#0A110B]'}`}>
+        <nav className="flex-1 p-3 text-sm">
+          <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
+          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${view==='scraper' ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
             <Search size={14} /> Scraper
           </button>
-          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left cursor-pointer transition-colors ${view === 'leads' ? 'bg-[#0A1F0C] text-[#A3E635]' : 'text-[#94A3B8] hover:text-white hover:bg-[#0A110B]'}`}>
+          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${view==='leads' ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
             <Users size={14} /> All Leads
-            <span className="ml-auto text-xs bg-[#122016] px-2 py-0.5 rounded-full">{leads.length}</span>
+            <span className="ml-auto text-[10px] bg-[#A3E635]/10 text-[#A3E635] px-2 py-0.5 rounded-full font-bold">{leads.length}</span>
+          </button>
+          <div className="h-px bg-[#122016] my-2" />
+          <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Export</div>
+          <button onClick={() => exportCSV()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+            <Download size={14} /> Export CSV
+          </button>
+          <button onClick={exportJSON} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+            <FileJson size={14} /> Export JSON
           </button>
         </nav>
         <div className="p-3 space-y-1 text-sm border-t border-[#122016]">
-          <div className="text-[10px] text-[#4B6856] uppercase tracking-wider px-3 py-2">Export</div>
-          <button onClick={exportCSV} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#94A3B8] hover:text-white hover:bg-[#0A110B] text-left cursor-pointer">
-            <Download size={14} /> Export CSV
-          </button>
-          {(session?.user as { role?: string })?.role === 'admin' && (
-            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#94A3B8] hover:text-[#A3E635] hover:bg-[#0A110B] text-left cursor-pointer">
+          {(session?.user as {role?:string})?.role === 'admin' && (
+            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[#4B6856] hover:text-[#A3E635] hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
               <Settings size={14} /> Admin
             </button>
           )}
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-[#0A110B] text-left cursor-pointer">
+          <button onClick={() => signOut({callbackUrl:'/login'})} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[#4B6856] hover:text-red-400 hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
             <LogOut size={14} /> Sign Out
           </button>
         </div>
@@ -147,194 +232,366 @@ export default function DashboardPage() {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="flex items-center justify-between px-6 py-3 border-b border-[#122016] shrink-0">
-          <span className="text-white font-semibold font-heading">{view === 'scraper' ? 'Scraper' : 'All Leads'}</span>
-          <div className="flex gap-3">
+        <header className="flex items-center justify-between px-6 py-3 border-b border-[#122016] shrink-0 bg-[#070D08]/80 backdrop-blur-sm sticky top-0 z-40">
+          <span className="text-white font-bold text-base tracking-tight">{view==='scraper' ? 'Scraper' : 'All Leads'}</span>
+          <div className="flex gap-2.5">
             <button onClick={() => setDelConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#94A3B8] border border-[#122016] hover:border-red-500/30 hover:text-red-400 transition-all cursor-pointer">
               <Trash2 size={13} /> Clear All
             </button>
-            <button onClick={exportCSV} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs bg-amber-500/90 hover:bg-amber-400 text-black font-semibold transition-all cursor-pointer">
+            <button onClick={() => exportCSV()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs bg-amber-500/90 hover:bg-amber-400 text-black font-semibold transition-all cursor-pointer">
               <Download size={13} /> Export CSV
             </button>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-dark">
+
           {/* Stats */}
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: 'Total Leads', value: stats.total, icon: Users },
-              { label: 'Qualified', value: stats.qualified, icon: CheckCircle, pct: stats.total ? Math.round(stats.qualified/stats.total*100) : 0 },
-              { label: 'Contacted', value: stats.contacted, icon: Phone, pct: stats.total ? Math.round(stats.contacted/stats.total*100) : 0 },
-              { label: 'With Website', value: stats.hasWebsite, icon: Globe, pct: stats.total ? Math.round(stats.hasWebsite/stats.total*100) : 0 },
-            ].map(({ label, value, icon: Icon, pct }) => (
-              <div key={label} className="glass-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <Icon size={16} className="text-[#4B6856]" />
-                  {pct !== undefined && <span className="text-[10px] text-[#A3E635]">{pct}%</span>}
+              { label:'Total Leads',  value:stats.total,      icon:Users,        color:'text-[#4ADE80]', glow:'bg-[#4ADE80]',  bg:'bg-[#4ADE80]/10' },
+              { label:'Qualified',    value:stats.qualified,  icon:CheckCircle,  color:'text-emerald-400', glow:'bg-emerald-400', bg:'bg-emerald-400/10', pct: stats.total ? Math.round(stats.qualified/stats.total*100) : 0 },
+              { label:'Contacted',    value:stats.contacted,  icon:Phone,        color:'text-amber-400', glow:'bg-amber-400',  bg:'bg-amber-400/10',  pct: stats.total ? Math.round(stats.contacted/stats.total*100) : 0 },
+              { label:'With Website', value:stats.hasWebsite, icon:Globe,        color:'text-purple-400', glow:'bg-purple-400', bg:'bg-purple-400/10', pct: stats.total ? Math.round(stats.hasWebsite/stats.total*100) : 0 },
+            ].map(({ label, value, icon: Icon, color, glow, bg, pct }) => (
+              <div key={label} className="glass-card p-5 relative overflow-hidden">
+                <div className={`absolute top-0 right-0 w-20 h-20 rounded-full opacity-[0.07] blur-2xl ${glow}`} />
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg}`}>
+                    <Icon size={16} className={color} />
+                  </div>
+                  {pct !== undefined && <span className="text-[10px] font-bold text-[#A3E635]">{pct}%</span>}
                 </div>
-                <div className="text-2xl font-bold text-white font-heading">{value}</div>
-                <div className="text-xs text-[#4B6856]">{label}</div>
+                <div className="text-3xl font-bold text-white tracking-tight">{value}</div>
+                <div className="text-xs text-[#4B6856] mt-1 font-medium">{label}</div>
               </div>
             ))}
           </div>
 
-          {/* Scrape Form */}
+          {/* Scraper Card */}
           {view === 'scraper' && (
-          <div className="glass-card p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Search size={16} className="text-[#A3E635]" />
-              <span className="text-white font-semibold text-sm">Scrape New Leads</span>
-              <span className="text-xs text-[#4B6856] ml-1">Google Maps</span>
+          <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] overflow-hidden">
+            <button onClick={() => setPanelOpen(p => !p)}
+              className="w-full flex items-center justify-between px-5 py-4 border-b border-[#122016] cursor-pointer hover:bg-[#A3E635]/[0.03] transition-colors"
+              style={{background:'linear-gradient(90deg,rgba(163,230,53,0.04),transparent)'}}>
+              <div className="flex items-center gap-2.5">
+                <Search size={15} className="text-[#4ADE80]" />
+                <span className="text-white font-bold text-sm">Scrape New Leads</span>
+                <span className="text-xs text-[#4B6856]">· Google Maps</span>
+              </div>
+              {panelOpen ? <ChevronUp size={15} className="text-[#4B6856]" /> : <ChevronDown size={15} className="text-[#4B6856]" />}
+            </button>
+
+            {panelOpen && (
+            <div className="p-5">
+              {/* Row 1 */}
+              <div className="grid grid-cols-4 gap-3 mb-3">
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Keyword / Business Type</label>
+                  <input value={form.keyword} onChange={e => setForm(f=>({...f,keyword:e.target.value}))}
+                    placeholder="e.g. Dentists, Restaurants, Gyms"
+                    className="input-dark w-full px-3 py-2 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">City / Location</label>
+                  <input value={form.location} onChange={e => setForm(f=>({...f,location:e.target.value}))}
+                    placeholder="e.g. Mumbai, New York, London"
+                    className="input-dark w-full px-3 py-2 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Category</label>
+                  <select className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    {SCRAPER_CATS.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Max Results</label>
+                  <select value={form.maxResults} onChange={e => setForm(f=>({...f,maxResults:e.target.value}))}
+                    className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    {['10','20','50'].map(n => <option key={n} value={n}>{n} results</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* Row 2 */}
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Min Rating</label>
+                  <select value={form.minRating} onChange={e => setForm(f=>({...f,minRating:e.target.value}))}
+                    className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    <option value="0">Any Rating</option>
+                    <option value="3">3+ Stars</option>
+                    <option value="4">4+ Stars</option>
+                    <option value="4.5">4.5+ Stars</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Min Reviews</label>
+                  <select value={form.minReviews} onChange={e => setForm(f=>({...f,minReviews:e.target.value}))}
+                    className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    <option value="0">Any</option>
+                    <option value="10">10+</option>
+                    <option value="50">50+</option>
+                    <option value="100">100+</option>
+                    <option value="500">500+</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Strategy</label>
+                  <select value={form.strategy} onChange={e => setForm(f=>({...f,strategy:e.target.value}))}
+                    className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
+                    <option value="fast">Fast (1–5 min)</option>
+                    <option value="detailed">Detailed (10–20 min)</option>
+                    <option value="deep">Deep (max results)</option>
+                  </select>
+                </div>
+                <div className="flex flex-col justify-center gap-3 pt-1">
+                  {[
+                    { key:'hasWebsite', label:'Has website only' },
+                    { key:'hasPhone',   label:'Has phone only' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2.5 cursor-pointer">
+                      <div className="relative w-9 h-5">
+                        <input type="checkbox" className="sr-only"
+                          checked={form[key as 'hasWebsite'|'hasPhone']}
+                          onChange={e => setForm(f=>({...f,[key]:e.target.checked}))} />
+                        <div className={`absolute inset-0 rounded-full border transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'bg-[#16A34A]/30 border-[#16A34A]' : 'bg-[#0A110B] border-[#1A321E]'}`} />
+                        <div className={`absolute top-[3px] left-[3px] w-[14px] h-[14px] rounded-full transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'translate-x-4 bg-[#4ADE80]' : 'bg-[#4B6856]'}`} />
+                      </div>
+                      <span className="text-xs text-[#94A3B8] font-medium">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Actions */}
+              <div className="flex items-center gap-3">
+                <button onClick={startScrape} disabled={scraping || !form.keyword || !form.location}
+                  className="btn-lime px-6 py-2 rounded-lg text-sm flex items-center gap-2 disabled:opacity-40 whitespace-nowrap font-semibold">
+                  {scraping ? <><RefreshCw size={14} className="animate-spin" /> Scraping...</> : <><Search size={14} /> Start Scraping</>}
+                </button>
+                {scraping && (
+                  <div className="flex-1">
+                    <div className="w-full h-1.5 bg-[#0A110B] rounded-full overflow-hidden border border-[#1A321E] mb-1">
+                      <div className="h-full bg-gradient-to-r from-[#166534] via-[#4ADE80] to-[#A3E635] rounded-full transition-all duration-300" style={{width:`${progress}%`}} />
+                    </div>
+                    <div className="text-[11px] text-[#4B6856] font-medium">{progressTxt}</div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-3 items-end mb-3">
-              <div className="flex-1 min-w-[160px]">
-                <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1">Keyword / Business Type</label>
-                <input value={form.keyword} onChange={e => setForm(f => ({ ...f, keyword: e.target.value }))}
-                  placeholder="e.g. Dentists, Salons, Gyms"
-                  className="input-dark w-full px-3 py-2 rounded-xl text-sm" />
-              </div>
-              <div className="flex-1 min-w-[160px]">
-                <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1">City / Location</label>
-                <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                  placeholder="e.g. Mumbai, Chennai"
-                  className="input-dark w-full px-3 py-2 rounded-xl text-sm" />
-              </div>
-              <div className="w-36">
-                <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1">Max Results</label>
-                <select value={form.maxResults} onChange={e => setForm(f => ({ ...f, maxResults: e.target.value }))}
-                  className="input-dark w-full px-3 py-2 rounded-xl text-sm cursor-pointer">
-                  {['10','20','50'].map(n => <option key={n} value={n}>{n} results</option>)}
-                </select>
-              </div>
-              <button onClick={startScrape} disabled={scraping || !form.keyword || !form.location}
-                className="btn-lime px-6 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-40 whitespace-nowrap">
-                {scraping ? <><RefreshCw size={14} className="animate-spin" /> Scraping...</> : <><Search size={14} /> Start Scraping</>}
-              </button>
-            </div>
-            {scraping && (
-              <div className="w-full h-1.5 bg-[#0A110B] rounded-full overflow-hidden mt-2">
-                <div className="h-full bg-gradient-to-r from-[#166534] via-[#4ADE80] to-[#A3E635] rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-              </div>
             )}
           </div>
           )}
 
-          {/* Filters */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B6856]" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads..."
-                className="input-dark w-full pl-8 pr-3 py-2 rounded-xl text-sm" />
+          {/* Filter Bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B6856] pointer-events-none" />
+              <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search leads..."
+                className="input-dark w-[220px] pl-8 pr-3 py-2 rounded-lg text-sm" />
             </div>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input-dark px-3 py-2 rounded-xl text-sm cursor-pointer">
-              {STATUS_OPTS.map(s => <option key={s} value={s}>{s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-            </select>
-            <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="input-dark px-3 py-2 rounded-xl text-sm cursor-pointer">
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <span className="text-xs text-[#4B6856] ml-auto">{filtered.length} leads</span>
+            {([
+              { val: statusFilter, set: (v:string) => { setStatusFilter(v); setPage(1) }, opts: STATUS_OPTS.map(s => ({v:s, l: s==='all'?'All Status':s.charAt(0).toUpperCase()+s.slice(1)})) },
+              { val: ratingFilter, set: (v:string) => { setRatingFilter(v); setPage(1) }, opts: [{v:'0',l:'Any Rating'},{v:'3',l:'3+ Stars'},{v:'4',l:'4+ Stars'},{v:'4.5',l:'4.5+ Stars'}] },
+              { val: webFilter,    set: (v:string) => { setWebFilter(v); setPage(1) },    opts: [{v:'all',l:'All'},{v:'yes',l:'Has Website'},{v:'no',l:'No Website'}] },
+              { val: sortF,        set: (v:string) => { setSortF(v); setPage(1) },         opts: [{v:'rating_desc',l:'Rating ↓'},{v:'rating_asc',l:'Rating ↑'},{v:'reviews_desc',l:'Reviews ↓'},{v:'name_asc',l:'Name A–Z'},{v:'name_desc',l:'Name Z–A'}] },
+            ] as const).map((f, i) => (
+              <select key={i} value={f.val} onChange={e => (f.set as (v:string)=>void)(e.target.value)}
+                className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
+                {(f.opts as {v:string;l:string}[]).map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+              </select>
+            ))}
+            <span className="ml-auto text-xs text-[#4B6856] bg-[#0A110B] border border-[#122016] px-3 py-2 rounded-lg font-semibold">{filtered.length} leads</span>
           </div>
 
           {/* Bulk bar */}
           {selected.size > 0 && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#A3E635]/5 border border-[#A3E635]/20 text-sm">
-              <span className="text-[#A3E635]">{selected.size} selected</span>
-              <button onClick={() => { setLeads(prev => prev.filter((_, i) => !selected.has(i))); setSelected(new Set()) }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 cursor-pointer text-xs">
-                <Trash2 size={12} /> Delete
-              </button>
-              <button onClick={() => setSelected(new Set())} className="ml-auto text-[#4B6856] hover:text-white cursor-pointer">
-                <X size={14} />
-              </button>
+            <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm"
+              style={{background:'linear-gradient(135deg,rgba(163,230,53,0.07),rgba(74,222,128,0.04))',borderColor:'rgba(163,230,53,0.2)'}}>
+              <span className="text-[#A3E635] font-bold text-xs">{selected.size} selected</span>
+              <div className="w-px h-4 bg-[#1A321E]" />
+              <button onClick={() => bulkSetStatus('qualified')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer">Mark Qualified</button>
+              <button onClick={() => bulkSetStatus('contacted')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-pointer">Mark Contacted</button>
+              <button onClick={() => bulkSetStatus('lost')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 cursor-pointer">Mark Lost</button>
+              <button onClick={bulkExport} className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/[0.05] text-[#94A3B8] border border-[#122016] cursor-pointer">Export Selected</button>
+              <button onClick={() => setSelected(new Set())} className="ml-auto text-[#4B6856] hover:text-white cursor-pointer"><X size={14} /></button>
             </div>
           )}
 
           {/* Table */}
-          <div className="glass-card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#122016]">
-                  <th className="p-3 text-left w-8">
-                    <input type="checkbox" onChange={selectAll} checked={selected.size === filtered.length && filtered.length > 0} className="cursor-pointer accent-[#A3E635]" />
-                  </th>
-                  {['Business Name','Phone','Address','Rating','Website','Category','Status'].map(h => (
-                    <th key={h} className="p-3 text-left text-[10px] text-[#4B6856] uppercase tracking-wider font-medium">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paged.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-16 text-[#4B6856]">
-                    <Search size={32} className="mx-auto mb-3 text-[#122016]" />
-                    <div>No leads yet</div>
-                    <div className="text-xs mt-1">Click Start Scraping to begin</div>
-                  </td></tr>
-                ) : paged.map((lead, i) => {
-                  const realIdx = (page - 1) * PER_PAGE + i
+          <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" style={{minWidth:'960px'}}>
+                <thead>
+                  <tr className="bg-[#070D08] border-b border-[#122016]">
+                    <th className="p-3 w-9"><input type="checkbox" onChange={selectAll} checked={selected.size===filtered.length && filtered.length>0} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></th>
+                    {['Business Name','Phone','Address','Rating','Reviews','Website','Category','Status','Actions'].map(h => (
+                      <th key={h} className="px-3 py-3 text-left text-[10.5px] text-[#4B6856] uppercase tracking-[1.5px] font-bold whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.length === 0 ? (
+                    <tr><td colSpan={10} className="py-16 text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-[#A3E635]/5 border border-[#A3E635]/10 flex items-center justify-center mx-auto mb-4">
+                        <Search size={26} className="text-[#4ADE80]" />
+                      </div>
+                      <div className="text-[#94A3B8] font-bold mb-1">No leads yet</div>
+                      <div className="text-xs text-[#4B6856]">Click Start Scraping to begin</div>
+                    </td></tr>
+                  ) : paged.map((lead, i) => {
+                    const realIdx = (page - 1) * PER_PAGE + i
+                    return (
+                      <tr key={realIdx} className={`border-b border-[#0D160E]/60 transition-colors hover:bg-[#A3E635]/[0.02] ${selected.has(realIdx) ? 'bg-[#A3E635]/[0.04]' : ''}`}>
+                        <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></td>
+                        <td className="px-3 py-3 max-w-[170px]">
+                          <div className="font-semibold text-[#E8EDF5] truncate" title={lead.name}>{lead.name}</div>
+                        </td>
+                        <td className="px-3 py-3 text-[#94A3B8] whitespace-nowrap text-[12px] font-medium">{lead.phone || '—'}</td>
+                        <td className="px-3 py-3 max-w-[190px]">
+                          <div className="text-[#4B6856] text-xs truncate" title={lead.address}>{lead.address}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <Star size={11} className="text-amber-400 fill-amber-400" />
+                            <span className="text-[12px] font-semibold text-[#94A3B8]">{lead.rating || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-[12px] font-medium text-[#4B6856] whitespace-nowrap">{lead.reviews ? `(${Number(lead.reviews).toLocaleString()})` : '—'}</td>
+                        <td className="px-3 py-3 max-w-[140px]">
+                          {lead.website
+                            ? <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener" className="text-[#4ADE80] text-xs truncate block hover:text-[#A3E635] hover:underline" title={lead.website}>{lead.website.replace(/^https?:\/\//,'').replace(/\/$/,'')}</a>
+                            : <span className="text-[#1A321E] text-xs">—</span>}
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-[#A3E635]/8 text-[#86EFAC] border border-[#A3E635]/15">{lead.category}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <button onClick={() => cycleStatus(realIdx)} className={`px-2.5 py-1 rounded-full text-[10.5px] border cursor-pointer font-bold flex items-center gap-1 whitespace-nowrap ${STATUS_COLORS[lead.status]||STATUS_COLORS.new}`}>
+                            <span className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${lead.status==='new'?'bg-[#A3E635]':lead.status==='contacted'?'bg-amber-400':lead.status==='qualified'?'bg-emerald-400':lead.status==='converted'?'bg-blue-400':'bg-red-400'}`} />
+                            {lead.status}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{opacity:1}}>
+                            <button onClick={() => setModalLead(lead)} title="View" className="w-7 h-7 rounded-md flex items-center justify-center border border-[#1A321E] text-[#4B6856] hover:text-[#4ADE80] hover:border-[#4ADE80]/30 hover:bg-[#4ADE80]/10 transition-all cursor-pointer">
+                              <Eye size={12} />
+                            </button>
+                            <button onClick={() => deleteLead(realIdx)} title="Delete" className="w-7 h-7 rounded-md flex items-center justify-center border border-[#1A321E] text-[#4B6856] hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5 px-4 py-3 border-t border-[#122016] bg-[#070D08]">
+                <button onClick={() => setPage(p=>Math.max(1,p-1))} disabled={page===1}
+                  className="min-w-[32px] h-8 px-2 rounded-lg bg-[#0A110B] border border-[#122016] text-[#4B6856] text-xs font-semibold cursor-pointer disabled:opacity-35 hover:border-[#A3E635]/30 hover:text-white transition-all">‹</button>
+                {Array.from({length:Math.min(5,totalPages)},(_,i)=>{
+                  let p = i+1
+                  if (totalPages>5) { if (page<=3) p=i+1; else if (page>=totalPages-2) p=totalPages-4+i; else p=page-2+i }
                   return (
-                    <tr key={realIdx} className={`border-b border-[#0A110B] hover:bg-[#0A110B]/50 transition-colors ${selected.has(realIdx) ? 'bg-[#A3E635]/5' : ''}`}>
-                      <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635]" /></td>
-                      <td className="p-3 max-w-[220px]">
-                        <div className="font-medium text-white truncate" title={lead.name}>{lead.name}</div>
-                      </td>
-                      <td className="p-3 text-[#94A3B8] whitespace-nowrap text-sm">{lead.phone || '—'}</td>
-                      <td className="p-3 text-[#94A3B8] text-xs max-w-[180px]">
-                        <div className="truncate" title={lead.address}>{lead.address}</div>
-                      </td>
-                      <td className="p-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1 text-[#94A3B8]">
-                          <Star size={12} className="text-amber-400 fill-amber-400" />
-                          {lead.rating} <span className="text-[#4B6856] text-xs">({lead.reviews})</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-xs max-w-[130px]">
-                        <div className="truncate text-[#A3E635]" title={lead.website || ''}>{lead.website || '—'}</div>
-                      </td>
-                      <td className="p-3 text-xs text-[#94A3B8] whitespace-nowrap">{lead.category}</td>
-                      <td className="p-3">
-                        <button onClick={() => cycleStatus(realIdx)} className={`px-2 py-1 rounded-full text-xs border cursor-pointer whitespace-nowrap ${STATUS_COLORS[lead.status] || STATUS_COLORS.new}`}>
-                          {lead.status}
-                          <ChevronDown size={10} className="inline ml-1" />
-                        </button>
-                      </td>
-                    </tr>
+                    <button key={p} onClick={() => setPage(p)}
+                      className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all ${page===p ? 'bg-gradient-to-br from-[#16A34A] to-[#15803D] text-white border-[#16A34A] shadow-lg shadow-[#A3E635]/20' : 'bg-[#0A110B] border border-[#122016] text-[#4B6856] hover:text-white hover:border-[#A3E635]/30'}`}>
+                      {p}
+                    </button>
                   )
                 })}
-              </tbody>
-            </table>
+                <button onClick={() => setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
+                  className="min-w-[32px] h-8 px-2 rounded-lg bg-[#0A110B] border border-[#122016] text-[#4B6856] text-xs font-semibold cursor-pointer disabled:opacity-35 hover:border-[#A3E635]/30 hover:text-white transition-all">›</button>
+                <span className="ml-auto text-[11.5px] text-[#4B6856] font-medium">
+                  {(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE,filtered.length)} of {filtered.length}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pb-4">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg text-sm cursor-pointer ${p === page ? 'bg-[#16A34A] text-white' : 'text-[#4B6856] hover:text-white border border-[#122016]'}`}>
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Delete confirm */}
-      {delConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card p-7 max-w-sm w-full text-center">
-            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={22} className="text-red-400" />
+      {/* Lead Detail Modal */}
+      {modalLead && (
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-md z-[100] flex items-center justify-center" onClick={() => setModalLead(null)}>
+          <div className="bg-[#0A110B] border border-[#1A321E] rounded-2xl w-[580px] max-h-[88vh] flex flex-col overflow-hidden animate-[pop_180ms_cubic-bezier(0.34,1.56,0.64,1)]" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#122016]">
+              <span className="text-base font-bold text-white">Lead Details</span>
+              <button onClick={() => setModalLead(null)} className="w-7 h-7 rounded-lg border border-[#122016] text-[#4B6856] hover:text-white hover:bg-[#122016] flex items-center justify-center cursor-pointer text-sm">✕</button>
             </div>
-            <h3 className="text-white font-semibold mb-2 font-heading">Delete all leads?</h3>
-            <p className="text-[#94A3B8] text-sm mb-6">This will permanently remove all {leads.length} leads. This cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDelConfirm(false)} className="flex-1 py-2.5 rounded-xl border border-[#122016] text-[#94A3B8] hover:text-white transition-all cursor-pointer text-sm">Cancel</button>
-              <button onClick={deleteAll} className="flex-1 py-2.5 rounded-xl bg-red-500/90 hover:bg-red-500 text-white font-semibold transition-all cursor-pointer text-sm">Delete All</button>
+            <div className="p-5 overflow-y-auto flex-1">
+              <div className="text-[9px] font-bold text-[#4B6856] uppercase tracking-[2px] mb-3 pb-2 border-b border-[#122016]">Business Info</div>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {[
+                  { label:'Business Name', value:modalLead.name, full:true },
+                  { label:'Phone',    value:modalLead.phone || '—' },
+                  { label:'Email',    value:modalLead.email || '—' },
+                  { label:'Website',  value:modalLead.website || '—' },
+                  { label:'Address',  value:modalLead.address, full:true },
+                  { label:'Category', value:modalLead.category },
+                  { label:'Rating',   value:modalLead.rating ? `${modalLead.rating} ★` : '—' },
+                  { label:'Reviews',  value:modalLead.reviews ? `(${Number(modalLead.reviews).toLocaleString()})` : '—' },
+                  { label:'Status',   value:modalLead.status },
+                  { label:'Keyword',  value:modalLead.keyword || '—' },
+                  { label:'Location', value:modalLead.location || '—' },
+                ].map(({ label, value, full }) => (
+                  <div key={label} className={full ? 'col-span-2' : ''}>
+                    <div className="text-[10px] font-bold text-[#4B6856] uppercase tracking-[1.5px] mb-1">{label}</div>
+                    <div className="text-[13px] text-[#94A3B8] font-medium break-all">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 px-5 py-4 border-t border-[#122016] bg-[#070D08]">
+              {modalLead.phone && (
+                <a href={`tel:${modalLead.phone}`} className="btn-lime px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                  <Phone size={12} /> Call
+                </a>
+              )}
+              {modalLead.website && (
+                <a href={modalLead.website.startsWith('http') ? modalLead.website : `https://${modalLead.website}`} target="_blank" rel="noopener" className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#1A321E] text-[#94A3B8] hover:text-white flex items-center gap-1.5 cursor-pointer">
+                  <Globe size={12} /> Visit Site
+                </a>
+              )}
+              <button onClick={() => setModalLead(null)} className="ml-auto px-4 py-2 rounded-lg text-xs font-semibold border border-[#122016] text-[#4B6856] hover:text-white cursor-pointer">Close</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Confirm */}
+      {delConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center">
+          <div className="bg-[#0A110B] border border-[#1A321E] rounded-2xl w-[340px] overflow-hidden shadow-2xl">
+            <div className="flex justify-center pt-6">
+              <div className="w-12 h-12 rounded-[14px] bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <Trash2 size={22} className="text-red-400" />
+              </div>
+            </div>
+            <div className="px-6 pb-4 pt-3 text-center">
+              <div className="text-base font-bold text-white mb-1.5">Clear All Leads?</div>
+              <div className="text-xs text-[#4B6856] leading-relaxed">This will permanently delete all <span className="text-[#94A3B8] font-semibold">{leads.length} leads</span> from your account.</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 px-6 pb-5">
+              <button onClick={() => setDelConfirm(false)} className="py-2.5 rounded-xl border border-[#1A321E] text-[#94A3B8] text-sm font-semibold hover:text-white hover:bg-white/[0.05] cursor-pointer transition-all">Cancel</button>
+              <button onClick={deleteAll} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-white text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">Delete All</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-medium shadow-2xl animate-[tup_200ms_ease]
+          ${toast.ok ? 'bg-[#0C1510] border-emerald-500/30 text-emerald-400' : 'bg-[#0C0A0A] border-red-500/30 text-red-400'}`}>
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${toast.ok ? 'bg-emerald-400' : 'bg-red-400'}`} />
+          {toast.msg}
+        </div>
+      )}
+
     </div>
   )
 }
