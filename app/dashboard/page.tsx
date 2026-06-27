@@ -353,9 +353,9 @@ export default function DashboardPage() {
           <div className={`h-full rounded-full transition-all ${barColor}`} style={{width:`${planStatus.percentUsed}%`}} />
         </div>
         {!planStatus.isActive && (
-          <button onClick={() => {}} className="w-full mt-2 py-1.5 rounded-lg text-[10px] font-bold bg-gradient-to-r from-[#A3E635]/20 to-[#4ADE80]/10 text-[#A3E635] border border-[#A3E635]/20 cursor-pointer hover:from-[#A3E635]/30 transition-all">
-            Upgrade Now ↑
-          </button>
+          <div className="mt-2 px-1 py-1.5 rounded-lg text-center text-[9px] font-bold text-red-400 border border-red-500/20 bg-red-500/5">
+            ⛔ Access blocked — upgrade to continue
+          </div>
         )}
       </div>
     )
@@ -485,7 +485,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
                 <p className="text-center text-[11px] text-[#4B6856] mt-5">
-                  Your saved leads are still available in <button onClick={() => setView('leads')} className="text-[#4ADE80] underline cursor-pointer">All Leads</button>
+                  Your data is safe. Upgrade to continue accessing your leads.
                 </p>
               </div>
             </div>
