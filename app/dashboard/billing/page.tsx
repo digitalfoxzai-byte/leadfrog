@@ -414,16 +414,16 @@ export default function BillingPage() {
                   <motion.div key={`${plan.key}-${cycle}`}
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: i * 0.05, ease }}
-                    className={`relative bg-[#070D08] border rounded-2xl flex flex-col ${plan.border} ${isPopular ? 'pt-8 px-5 pb-5' : 'p-5'}`}
+                    className={`relative bg-[#070D08] border rounded-2xl flex flex-col pt-8 px-5 pb-5 ${plan.border}`}
                     style={isPopular ? { boxShadow: `0 0 24px ${plan.color}12` } : {}}>
 
-                    {isPopular && (
+                    {isPopular ? (
                       <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
                         <span className="bg-[#A3E635] text-[#050A06] text-[10px] font-extrabold px-3 py-1 rounded-full whitespace-nowrap">Most Popular</span>
                       </div>
-                    )}
+                    ) : <div className="h-0" />}
 
-                    <div className="flex items-center gap-2.5 mb-4 mt-2">
+                    <div className="flex items-center gap-2.5 mb-4">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                         style={{ backgroundColor: `${plan.color}12`, border: `1px solid ${plan.color}28` }}>
                         <plan.icon size={16} style={{ color: plan.color }} />
