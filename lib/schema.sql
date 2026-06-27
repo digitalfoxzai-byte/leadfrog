@@ -65,4 +65,11 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('business_price', '2499'),
   ('starter_leads', '500'),
   ('pro_leads', '2000'),
-  ('business_leads', '10000');
+  ('business_leads', '10000'),
+  ('smtp_host', ''),
+  ('smtp_port', '465'),
+  ('smtp_secure', '1'),
+  ('smtp_user', ''),
+  ('smtp_pass', ''),
+  ('smtp_from_name', 'LeadFrog'),
+  ('smtp_from_email', '');
