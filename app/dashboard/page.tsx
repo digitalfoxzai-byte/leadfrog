@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
   Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe,
@@ -50,9 +50,10 @@ const UPGRADE_PLANS = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const window: any
 
-export default function DashboardPage() {
+function DashboardInner() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [scraperResults, setScraperResults] = useState<Lead[]>([])
   const [dbLeads, setDbLeads] = useState<Lead[]>([])
@@ -78,7 +79,9 @@ export default function DashboardPage() {
   const [sortF, setSortF] = useState('rating_desc')
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [view, setView] = useState<'scraper'|'leads'>('scraper')
+  const [view, setView] = useState<'scraper'|'leads'>(
+    searchParams.get('view') === 'leads' ? 'leads' : 'scraper'
+  )
   const [page, setPage] = useState(1)
   const [delConfirm, setDelConfirm] = useState(false)
   const [modalLead, setModalLead] = useState<Lead | null>(null)
@@ -894,5 +897,13 @@ export default function DashboardPage() {
       )}
 
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#050A06] flex items-center justify-center text-[#4B6856]">Loading...</div>}>
+      <DashboardInner />
+    </Suspense>
   )
 }

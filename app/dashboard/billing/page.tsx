@@ -270,8 +270,8 @@ export default function BillingPage() {
         <nav className="flex-1 p-3 text-sm overflow-y-auto">
           <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
           {[
-            { label: 'Scraper',  icon: Search,     href: '/dashboard' },
-            { label: 'All Leads', icon: Users,     href: '/dashboard' },
+            { label: 'Scraper',   icon: Search, href: '/dashboard' },
+            { label: 'All Leads', icon: Users,  href: '/dashboard?view=leads' },
           ].map(({ label, icon: Icon, href }) => (
             <button key={label} onClick={() => router.push(href)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 border-transparent text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] transition-all text-[13.5px] font-medium">
