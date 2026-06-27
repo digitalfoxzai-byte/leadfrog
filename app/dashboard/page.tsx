@@ -232,6 +232,19 @@ export default function DashboardPage() {
   }
   const bulkExport = () => exportCSV(Array.from(selected).map(i => filtered[i]).filter(Boolean))
 
+  const bulkDelete = useCallback(async () => {
+    const toDelete = Array.from(selected).map(i => filtered[i]).filter(Boolean)
+    const ids = toDelete.map(l => l.id).filter(Boolean) as number[]
+    const count = toDelete.length
+    if (ids.length) {
+      await fetch('/api/leads', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ids}) })
+      setDbLeads(prev => prev.filter(l => !l.id || !ids.includes(l.id)))
+    }
+    if (view === 'scraper') setScraperResults(prev => prev.filter(l => !toDelete.includes(l)))
+    setSelected(new Set())
+    showToast(`${count} leads deleted`)
+  }, [selected, filtered, view])
+
   const toggleSelect = (i: number) => setSelected(s => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
   const selectAll = () => setSelected(selected.size === filtered.length && filtered.length > 0 ? new Set() : new Set(filtered.map((_,i)=>i)))
 
@@ -484,6 +497,7 @@ export default function DashboardPage() {
               <button onClick={() => bulkSetStatus('contacted')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-pointer">Mark Contacted</button>
               <button onClick={() => bulkSetStatus('lost')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 cursor-pointer">Mark Lost</button>
               <button onClick={bulkExport} className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/[0.05] text-[#94A3B8] border border-[#122016] cursor-pointer">Export Selected</button>
+              <button onClick={bulkDelete} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors cursor-pointer">Delete Selected</button>
               <button onClick={() => setSelected(new Set())} className="ml-auto text-[#4B6856] hover:text-white cursor-pointer"><X size={14} /></button>
             </div>
           )}
