@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe,
   ChevronDown, ChevronUp, X, Star, RefreshCw, Settings, Eye, FileJson,
-  Lock, Zap, Check, Crown,
+  Lock, Zap, Check, Crown, CreditCard,
 } from 'lucide-react'
 
 interface Lead {
@@ -379,6 +379,11 @@ export default function DashboardPage() {
           <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${!isScraperView ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
             <Users size={14} /> All Leads
             <span className="ml-auto text-[10px] bg-[#A3E635]/10 text-[#A3E635] px-2 py-0.5 rounded-full font-bold">{dbLeads.length}</span>
+          </button>
+          <div className="h-px bg-[#122016] my-2" />
+          <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Account</div>
+          <button onClick={() => router.push('/dashboard/billing')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+            <CreditCard size={14} /> Billing
           </button>
           {!planBlocked && (
             <>

@@ -3,18 +3,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
 
-const PLANS = {
-  starter: { amount: 49900, name: 'Starter' },
-  pro: { amount: 99900, name: 'Pro' },
-  business: { amount: 249900, name: 'Business' },
+const PLANS: Record<string, { monthly: number; annual: number; name: string }> = {
+  starter:  { monthly: 49900,  annual: 479040,  name: 'Starter'  },  // ₹499 → ₹4790/yr (-20%)
+  pro:      { monthly: 99900,  annual: 958080,  name: 'Pro'      },  // ₹999 → ₹9581/yr (-20%)
+  business: { monthly: 249900, annual: 2399040, name: 'Business' },  // ₹2499 → ₹23990/yr (-20%)
 }
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { plan } = await req.json()
-  if (!PLANS[plan as keyof typeof PLANS]) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  const { plan, cycle = 'monthly' } = await req.json()
+  if (!PLANS[plan]) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  const isAnnual = cycle === 'annual'
 
   const settings = await query<{ key: string; value: string }[]>('SELECT `key`, `value` FROM settings WHERE `key` IN (?, ?)', ['razorpay_key_id', 'razorpay_key_secret'])
   const keyId = settings.find(s => s.key === 'razorpay_key_id')?.value || process.env.RAZORPAY_KEY_ID
@@ -24,29 +25,33 @@ export async function POST(req: NextRequest) {
 
   const Razorpay = (await import('razorpay')).default
   const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret })
-  const planData = PLANS[plan as keyof typeof PLANS]
+  const planData = PLANS[plan]
+  const amount = isAnnual ? planData.annual : planData.monthly
+  const planName = `${planData.name}${isAnnual ? ' Annual' : ''}`
 
   const order = await razorpay.orders.create({
-    amount: planData.amount,
+    amount,
     currency: 'INR',
     receipt: `leadfrog_${Date.now()}`,
-    notes: { plan, user: session.user?.email || '' },
+    notes: { plan, cycle, user: session.user?.email || '' },
   })
 
   const userId = (session.user as { id?: string }).id
   await query('INSERT INTO subscriptions (user_id, plan, razorpay_order_id, amount, status) VALUES (?,?,?,?,?)',
-    [userId, plan, order.id, planData.amount, 'pending'])
+    [userId, plan, order.id, amount, 'pending'])
 
-  return NextResponse.json({ orderId: order.id, keyId, amount: planData.amount, planName: planData.name })
+  return NextResponse.json({ orderId: order.id, keyId, amount, planName })
 }
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { orderId, paymentId, plan } = await req.json()
+  const { orderId, paymentId, plan, cycle = 'monthly' } = await req.json()
   const userId = (session.user as { id?: string }).id
-  const expires = new Date(); expires.setMonth(expires.getMonth() + 1)
+  const expires = new Date()
+  if (cycle === 'annual') expires.setFullYear(expires.getFullYear() + 1)
+  else expires.setMonth(expires.getMonth() + 1)
 
   await query('UPDATE subscriptions SET razorpay_payment_id=?, status=?, starts_at=NOW(), expires_at=? WHERE razorpay_order_id=?',
     [paymentId, 'active', expires, orderId])
