@@ -48,6 +48,17 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS EmailOtp (
+  id        INT AUTO_INCREMENT PRIMARY KEY,
+  email     VARCHAR(254) NOT NULL,
+  purpose   ENUM('signup','reset') NOT NULL,
+  codeHash  VARCHAR(64) NOT NULL,
+  expiresAt DATETIME NOT NULL,
+  attempts  INT NOT NULL DEFAULT 0,
+  createdAt DATETIME DEFAULT NOW(),
+  KEY idx_email_purpose (email, purpose)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   `key` VARCHAR(100) UNIQUE NOT NULL,
@@ -72,4 +83,5 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('smtp_user', ''),
   ('smtp_pass', ''),
   ('smtp_from_name', 'LeadFrog'),
-  ('smtp_from_email', '');
+  ('smtp_from_email', ''),
+  ('admin_email', '');

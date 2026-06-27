@@ -82,16 +82,20 @@ export default function LoginPage() {
 
           <button
             type="submit" disabled={loading}
-            className="btn-lime w-full py-3 rounded-xl text-sm mt-2 disabled:opacity-50"
+            className="btn-lime w-full py-3 rounded-xl text-sm mt-2 disabled:opacity-50 cursor-pointer"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-[#4B6856] mt-6">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-[#A3E635] hover:underline">Sign up free</Link>
-        </p>
+        <div className="flex items-center justify-between mt-5 text-sm text-[#4B6856]">
+          <span>Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-[#A3E635] hover:underline">Sign up free</Link>
+          </span>
+          <Link href="/forgot-password" className="text-[#4B6856] hover:text-[#A3E635] transition-colors">
+            Forgot password?
+          </Link>
+        </div>
       </motion.div>
     </div>
   )

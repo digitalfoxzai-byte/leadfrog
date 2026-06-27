@@ -7,24 +7,24 @@ export interface MailAttachment {
   contentType?: string
 }
 
-async function getSmtp() {
-  // Try DB settings first, fall back to env vars
+export async function getSmtpSettings() {
   const rows = await query<{ key: string; value: string }[]>(
-    "SELECT `key`, `value` FROM settings WHERE `key` IN ('smtp_host','smtp_port','smtp_secure','smtp_user','smtp_pass','smtp_from_name','smtp_from_email')"
+    "SELECT `key`, `value` FROM settings WHERE `key` IN ('smtp_host','smtp_port','smtp_secure','smtp_user','smtp_pass','smtp_from_name','smtp_from_email','admin_email')"
   ).catch(() => [] as { key: string; value: string }[])
 
   const get = (k: string) => rows.find(r => r.key === k)?.value || ''
 
-  const host      = get('smtp_host')      || process.env.SMTP_HOST      || ''
-  const user      = get('smtp_user')      || process.env.SMTP_USER      || ''
-  const pass      = get('smtp_pass')      || process.env.SMTP_PASS      || ''
-  const fromName  = get('smtp_from_name') || process.env.SMTP_FROM_NAME || 'LeadFrog'
-  const fromEmail = get('smtp_from_email')|| process.env.SMTP_FROM_EMAIL|| user
-  const port      = parseInt(get('smtp_port') || process.env.SMTP_PORT || '465', 10)
-  const secure    = get('smtp_secure') !== '' ? get('smtp_secure') === '1' : port === 465
+  const host       = get('smtp_host')      || process.env.SMTP_HOST      || ''
+  const user       = get('smtp_user')      || process.env.SMTP_USER      || ''
+  const pass       = get('smtp_pass')      || process.env.SMTP_PASS      || ''
+  const fromName   = get('smtp_from_name') || process.env.SMTP_FROM_NAME || 'LeadFrog'
+  const fromEmail  = get('smtp_from_email')|| process.env.SMTP_FROM_EMAIL|| user
+  const adminEmail = get('admin_email')    || process.env.ADMIN_EMAIL    || fromEmail
+  const port       = parseInt(get('smtp_port') || process.env.SMTP_PORT || '465', 10)
+  const secure     = get('smtp_secure') !== '' ? get('smtp_secure') === '1' : port === 465
 
   if (!host || !user || !pass) return null
-  return { host, port, secure, user, pass, fromName, fromEmail }
+  return { host, port, secure, user, pass, fromName, fromEmail, adminEmail }
 }
 
 export function emailTemplate(title: string, bodyHtml: string): string {
@@ -53,10 +53,16 @@ export function emailTemplate(title: string, bodyHtml: string): string {
 </body></html>`
 }
 
+export async function sendAdminMail(subject: string, html: string): Promise<boolean> {
+  const cfg = await getSmtpSettings()
+  if (!cfg || !cfg.adminEmail) return false
+  return sendMail(cfg.adminEmail, subject, html)
+}
+
 export async function sendMail(
   to: string, subject: string, html: string, attachments?: MailAttachment[]
 ): Promise<boolean> {
-  const cfg = await getSmtp()
+  const cfg = await getSmtpSettings()
   if (!cfg) {
     console.warn('[LeadFrog mailer] SMTP not configured — skipped:', subject)
     return false
