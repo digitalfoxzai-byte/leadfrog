@@ -6,8 +6,25 @@ import Image from 'next/image'
 import {
   Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe,
   ChevronDown, ChevronUp, X, Star, RefreshCw, Settings, Eye, FileJson,
-  Lock, Zap, Check, Crown, CreditCard,
+  Lock, Zap, Check, Crown, CreditCard, Sun, Moon,
 } from 'lucide-react'
+
+function useTheme() {
+  const [dark, setDark] = useState(true)
+  useEffect(() => {
+    const stored = localStorage.getItem('lf-theme')
+    const isDark = stored ? stored === 'dark' : true
+    setDark(isDark)
+    document.documentElement.classList.toggle('dark', isDark)
+  }, [])
+  const toggle = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem('lf-theme', next ? 'dark' : 'light')
+  }
+  return { dark, toggle }
+}
 
 interface Lead {
   id?: number; name: string; phone: string; email?: string; address: string
@@ -51,6 +68,7 @@ const UPGRADE_PLANS = [
 declare const window: any
 
 function DashboardInner() {
+  const { dark, toggle: toggleTheme } = useTheme()
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -325,7 +343,7 @@ function DashboardInner() {
   const selectAll = () => setSelected(selected.size === filtered.length && filtered.length > 0 ? new Set() : new Set(filtered.map((_,i)=>i)))
 
   if (status === 'loading' || planLoading) {
-    return <div className="min-h-screen bg-[#050A06] flex items-center justify-center text-[#4B6856]">Loading...</div>
+    return <div className="min-h-screen bg-[var(--ds-bg0)] flex items-center justify-center text-[var(--ds-muted)]">Loading...</div>
   }
 
   const isScraperView = view === 'scraper'
@@ -337,9 +355,9 @@ function DashboardInner() {
     const isTrial = planStatus.plan === 'free'
     const barColor = planStatus.percentUsed >= 90 ? 'bg-red-500' : planStatus.percentUsed >= 70 ? 'bg-amber-400' : 'bg-[#4ADE80]'
     return (
-      <div className="mx-3 mb-2 p-3 rounded-xl border border-[#122016] bg-[#070D08]">
+      <div className="mx-3 mb-2 p-3 rounded-xl border border-[var(--ds-bd1)] bg-[var(--ds-bg2)]">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-bold text-[#4B6856] uppercase tracking-widest">
+          <span className="text-[10px] font-bold text-[var(--ds-muted)] uppercase tracking-widest">
             {isTrial ? 'Free Trial' : planStatus.label}
           </span>
           {isTrial && planStatus.daysLeft > 0 && (
@@ -348,11 +366,11 @@ function DashboardInner() {
             </span>
           )}
         </div>
-        <div className="flex justify-between text-[10px] text-[#4B6856] mb-1">
+        <div className="flex justify-between text-[10px] text-[var(--ds-muted)] mb-1">
           <span>Leads used</span>
-          <span className="text-[#94A3B8] font-semibold">{planStatus.leadsUsed}/{planStatus.leadsLimit}</span>
+          <span className="text-[var(--ds-dim)] font-semibold">{planStatus.leadsUsed}/{planStatus.leadsLimit}</span>
         </div>
-        <div className="h-1.5 bg-[#0A110B] rounded-full border border-[#122016] overflow-hidden">
+        <div className="h-1.5 bg-[var(--ds-bg2)] rounded-full border border-[var(--ds-bd1)] overflow-hidden">
           <div className={`h-full rounded-full transition-all ${barColor}`} style={{width:`${planStatus.percentUsed}%`}} />
         </div>
         {!planStatus.isActive && (
@@ -365,54 +383,63 @@ function DashboardInner() {
   }
 
   return (
-    <div className="flex h-screen bg-[#050A06] overflow-hidden">
+    <div className="flex h-screen bg-[var(--ds-bg0)] overflow-hidden">
 
       {/* Sidebar */}
-      <aside className="w-[220px] shrink-0 flex flex-col border-r border-[#122016] bg-[#070D08]">
-        <div className="p-4 border-b border-[#122016] flex flex-col items-center gap-1.5">
+      <aside className="w-[220px] shrink-0 flex flex-col border-r border-[var(--ds-bd1)] bg-[var(--ds-bg1)]">
+        <div className="p-4 border-b border-[var(--ds-bd1)] flex flex-col items-center gap-1.5">
           <Image src="/logo.png" alt="LeadFrog" width={110} height={44} className="object-contain" />
-          <span className="text-[8px] text-[#4B6856] tracking-[2px] uppercase">Lead Intelligence</span>
+          <span className="text-[8px] text-[var(--ds-muted)] tracking-[2px] uppercase">Lead Intelligence</span>
         </div>
         <nav className="flex-1 p-3 text-sm overflow-y-auto">
-          <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
-          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${isScraperView ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
+          <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
+          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${isScraperView ? 'bg-[var(--ds-active-bg)] text-[#A3E635] border-[#4ADE80]' : 'text-[var(--ds-muted)] border-transparent hover:text-[var(--ds-dim)] hover:bg-white/[0.03]'}`}>
             <Search size={14} /> Scraper
             {scraperResults.length > 0 && <span className="ml-auto text-[10px] bg-[#4ADE80]/10 text-[#4ADE80] px-2 py-0.5 rounded-full font-bold">{scraperResults.length}</span>}
           </button>
-          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${!isScraperView ? 'bg-[#0A1F0C] text-[#A3E635] border-[#4ADE80]' : 'text-[#4B6856] border-transparent hover:text-[#94A3B8] hover:bg-white/[0.03]'}`}>
+          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${!isScraperView ? 'bg-[var(--ds-active-bg)] text-[#A3E635] border-[#4ADE80]' : 'text-[var(--ds-muted)] border-transparent hover:text-[var(--ds-dim)] hover:bg-white/[0.03]'}`}>
             <Users size={14} /> All Leads
             <span className="ml-auto text-[10px] bg-[#A3E635]/10 text-[#A3E635] px-2 py-0.5 rounded-full font-bold">{dbLeads.length}</span>
           </button>
-          <div className="h-px bg-[#122016] my-2" />
-          <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Account</div>
-          <button onClick={() => router.push('/dashboard/billing')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+          <div className="h-px bg-[var(--ds-bd1)] my-2" />
+          <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Account</div>
+          <button onClick={() => router.push('/dashboard/billing')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
             <CreditCard size={14} /> Billing
+          </button>
+          <button onClick={() => router.push('/dashboard/settings')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+            <Settings size={14} /> Settings
           </button>
           {!planBlocked && (
             <>
-              <div className="h-px bg-[#122016] my-2" />
-              <div className="text-[9px] text-[#4B6856] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Export</div>
-              <button onClick={() => exportCSV()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+              <div className="h-px bg-[var(--ds-bd1)] my-2" />
+              <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Export</div>
+              <button onClick={() => exportCSV()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
                 <Download size={14} /> Export CSV
               </button>
-              <button onClick={exportJSON} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[#4B6856] hover:text-[#94A3B8] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
+              <button onClick={exportJSON} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
                 <FileJson size={14} /> Export JSON
               </button>
             </>
           )}
         </nav>
         <PlanBadge />
-        <div className="p-3 space-y-1 text-sm border-t border-[#122016]">
+        <div className="p-3 space-y-1 text-sm border-t border-[var(--ds-bd1)]">
           {(session?.user as {role?:string})?.role === 'admin' && (
-            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[#4B6856] hover:text-[#A3E635] hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
+            <button onClick={() => router.push('/admin')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[var(--ds-muted)] hover:text-[#A3E635] hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
               <Settings size={14} /> Admin
             </button>
           )}
-          <button onClick={() => signOut({callbackUrl:'/login'})} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[#4B6856] hover:text-red-400 hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
+          <button onClick={() => signOut({callbackUrl:'/login'})} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[var(--ds-muted)] hover:text-red-400 hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
             <LogOut size={14} /> Sign Out
           </button>
         </div>
-        <div className="p-3 text-[10px] text-[#4B6856] text-center border-t border-[#122016]">LeadFrog © 2025</div>
+        <div className="p-3 flex items-center justify-between border-t border-[var(--ds-bd1)]">
+          <span className="text-[10px] text-[var(--ds-muted)]">LeadFrog © 2025</span>
+          <button onClick={toggleTheme} title="Toggle theme"
+            className="w-7 h-7 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
+            {dark ? <Sun size={12} /> : <Moon size={12} />}
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
@@ -428,21 +455,21 @@ function DashboardInner() {
                 <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
                   <Lock size={24} className="text-red-400" />
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">
+                <h2 className="text-xl font-bold text-[var(--ds-text)] mb-2">
                   {planStatus.expired ? 'Free Trial Ended' : 'Lead Limit Reached'}
                 </h2>
-                <p className="text-[#94A3B8] text-sm mb-5 leading-relaxed">
+                <p className="text-[var(--ds-dim)] text-sm mb-5 leading-relaxed">
                   {planStatus.expired
                     ? `Your 3-day free trial has ended. You scraped ${planStatus.leadsUsed} lead${planStatus.leadsUsed !== 1 ? 's' : ''}.`
                     : `You've reached the ${planStatus.leadsLimit}-lead limit of the Free Trial.`
                   }{' '}Upgrade to keep scraping.
                 </p>
                 <div className="max-w-xs mx-auto">
-                  <div className="flex justify-between text-[11px] text-[#4B6856] mb-1.5">
+                  <div className="flex justify-between text-[11px] text-[var(--ds-muted)] mb-1.5">
                     <span>Leads used</span>
-                    <span className="text-[#94A3B8] font-semibold">{planStatus.leadsUsed} / {planStatus.leadsLimit}</span>
+                    <span className="text-[var(--ds-dim)] font-semibold">{planStatus.leadsUsed} / {planStatus.leadsLimit}</span>
                   </div>
-                  <div className="h-2 bg-[#0A110B] rounded-full border border-[#122016] overflow-hidden">
+                  <div className="h-2 bg-[var(--ds-bg2)] rounded-full border border-[var(--ds-bd1)] overflow-hidden">
                     <div className="h-full rounded-full" style={{width:`${planStatus.percentUsed}%`,background:'linear-gradient(90deg,#dc2626,#f87171)'}} />
                   </div>
                 </div>
@@ -452,8 +479,8 @@ function DashboardInner() {
             {/* Plan cards */}
             <div className="px-8 pt-6 pb-10">
               <div className="max-w-2xl mx-auto">
-                <h3 className="text-white font-bold text-lg text-center mb-1">Upgrade Your Plan</h3>
-                <p className="text-[#4B6856] text-sm text-center mb-6">Secure payment via Razorpay · UPI, Cards, Net Banking</p>
+                <h3 className="text-[var(--ds-text)] font-bold text-lg text-center mb-1">Upgrade Your Plan</h3>
+                <p className="text-[var(--ds-muted)] text-sm text-center mb-6">Secure payment via Razorpay · UPI, Cards, Net Banking</p>
                 <div className="grid grid-cols-3 gap-4">
                   {UPGRADE_PLANS.map(plan => (
                     <div key={plan.key}
@@ -466,16 +493,16 @@ function DashboardInner() {
                       )}
                       <div className="flex items-center gap-1.5 mb-3">
                         {plan.key === 'business' ? <Crown size={13} className="text-purple-400" /> : <Zap size={13} className="text-[#4ADE80]" />}
-                        <span className="text-[10px] font-bold text-[#4B6856] uppercase tracking-widest">{plan.label}</span>
+                        <span className="text-[10px] font-bold text-[var(--ds-muted)] uppercase tracking-widest">{plan.label}</span>
                       </div>
                       <div className="mb-1">
-                        <span className="text-2xl font-bold text-white">₹{plan.price}</span>
-                        <span className="text-xs text-[#4B6856]">/mo</span>
+                        <span className="text-2xl font-bold text-[var(--ds-text)]">₹{plan.price}</span>
+                        <span className="text-xs text-[var(--ds-muted)]">/mo</span>
                       </div>
                       <div className="text-[#A3E635] text-xs font-semibold mb-4">{plan.leads.toLocaleString()} leads/month</div>
                       <ul className="space-y-1.5 flex-1 mb-5">
                         {plan.features.map(f => (
-                          <li key={f} className="flex items-start gap-1.5 text-[11px] text-[#94A3B8]">
+                          <li key={f} className="flex items-start gap-1.5 text-[11px] text-[var(--ds-dim)]">
                             <Check size={10} className="text-[#A3E635] shrink-0 mt-0.5" /> {f}
                           </li>
                         ))}
@@ -483,7 +510,7 @@ function DashboardInner() {
                       <button
                         onClick={() => buyPlan(plan.key)}
                         disabled={!!buyingPlan}
-                        className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${plan.popular ? 'btn-lime' : 'border border-[#1A321E] text-[#94A3B8] hover:border-[#A3E635]/30 hover:text-white hover:bg-[#A3E635]/5'}`}
+                        className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${plan.popular ? 'btn-lime' : 'border border-[var(--ds-bd2)] text-[var(--ds-dim)] hover:border-[#A3E635]/30 hover:text-[var(--ds-text)] hover:bg-[#A3E635]/5'}`}
                       >
                         {buyingPlan === plan.key
                           ? <span className="flex items-center justify-center gap-1.5"><RefreshCw size={11} className="animate-spin" /> Processing…</span>
@@ -492,7 +519,7 @@ function DashboardInner() {
                     </div>
                   ))}
                 </div>
-                <p className="text-center text-[11px] text-[#4B6856] mt-5">
+                <p className="text-center text-[11px] text-[var(--ds-muted)] mt-5">
                   Your data is safe. Upgrade to continue accessing your leads.
                 </p>
               </div>
@@ -503,28 +530,31 @@ function DashboardInner() {
           /* ── NORMAL DASHBOARD ── */
           <>
             {/* Topbar */}
-            <header className="flex items-center justify-between px-6 py-3 border-b border-[#122016] shrink-0 bg-[#070D08]/80 backdrop-blur-sm sticky top-0 z-40">
+            <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--ds-bd1)] shrink-0 bg-[var(--ds-topbar-bg)] backdrop-blur-sm sticky top-0 z-40">
               <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-base tracking-tight">{isScraperView ? 'Scraper' : 'All Leads'}</span>
+                <span className="text-[var(--ds-text)] font-bold text-base tracking-tight">{isScraperView ? 'Scraper' : 'All Leads'}</span>
                 {isScraperView && scraperResults.length > 0 && (
-                  <span className="text-[10px] text-[#4B6856] bg-[#0A110B] border border-[#122016] px-2 py-0.5 rounded-full">session results</span>
+                  <span className="text-[10px] text-[var(--ds-muted)] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] px-2 py-0.5 rounded-full">session results</span>
                 )}
               </div>
               <div className="flex items-center gap-3">
                 {/* Plan indicator in topbar */}
                 {planStatus && planStatus.plan !== 'admin' && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0A110B] border border-[#122016] text-[11px]">
-                    <span className="text-[#4B6856]">{planStatus.label}</span>
-                    <div className="w-px h-3 bg-[#122016]" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] text-[11px]">
+                    <span className="text-[var(--ds-muted)]">{planStatus.label}</span>
+                    <div className="w-px h-3 bg-[var(--ds-bd1)]" />
                     <span className={planStatus.leadsRemaining <= 5 ? 'text-red-400 font-semibold' : 'text-[#4ADE80] font-semibold'}>
                       {planStatus.leadsRemaining} leads left
                     </span>
                     {planStatus.plan === 'free' && planStatus.daysLeft > 0 && (
-                      <><div className="w-px h-3 bg-[#122016]" /><span className="text-amber-400 font-semibold">{planStatus.daysLeft}d trial</span></>
+                      <><div className="w-px h-3 bg-[var(--ds-bd1)]" /><span className="text-amber-400 font-semibold">{planStatus.daysLeft}d trial</span></>
                     )}
                   </div>
                 )}
-                <button onClick={() => setDelConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#94A3B8] border border-[#122016] hover:border-red-500/30 hover:text-red-400 transition-all cursor-pointer">
+                <button onClick={toggleTheme} title="Toggle theme" className="w-8 h-8 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
+                  {dark ? <Sun size={14} /> : <Moon size={14} />}
+                </button>
+                <button onClick={() => setDelConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--ds-dim)] border border-[var(--ds-bd1)] hover:border-red-500/30 hover:text-red-400 transition-all cursor-pointer">
                   <Trash2 size={13} /> {isScraperView ? 'Clear Results' : 'Clear All'}
                 </button>
                 <button onClick={() => exportCSV()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs bg-amber-500/90 hover:bg-amber-400 text-black font-semibold transition-all cursor-pointer">
@@ -551,54 +581,54 @@ function DashboardInner() {
                       </div>
                       {pct !== undefined && <span className="text-[10px] font-bold text-[#A3E635]">{pct}%</span>}
                     </div>
-                    <div className="text-3xl font-bold text-white tracking-tight">{value}</div>
-                    <div className="text-xs text-[#4B6856] mt-1 font-medium">{label}</div>
+                    <div className="text-3xl font-bold text-[var(--ds-text)] tracking-tight">{value}</div>
+                    <div className="text-xs text-[var(--ds-muted)] mt-1 font-medium">{label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Scraper Card */}
               {isScraperView && (
-              <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] overflow-hidden">
+              <div className="rounded-[14px] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] overflow-hidden">
                 <button onClick={() => setPanelOpen(p => !p)}
-                  className="w-full flex items-center justify-between px-5 py-4 border-b border-[#122016] cursor-pointer hover:bg-[#A3E635]/[0.03] transition-colors"
+                  className="w-full flex items-center justify-between px-5 py-4 border-b border-[var(--ds-bd1)] cursor-pointer hover:bg-[#A3E635]/[0.03] transition-colors"
                   style={{background:'linear-gradient(90deg,rgba(163,230,53,0.04),transparent)'}}>
                   <div className="flex items-center gap-2.5">
                     <Search size={15} className="text-[#4ADE80]" />
-                    <span className="text-white font-bold text-sm">Scrape New Leads</span>
-                    <span className="text-xs text-[#4B6856]">· Google Maps</span>
+                    <span className="text-[var(--ds-text)] font-bold text-sm">Scrape New Leads</span>
+                    <span className="text-xs text-[var(--ds-muted)]">· Google Maps</span>
                     {planStatus && planStatus.plan !== 'admin' && (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#A3E635]/10 text-[#A3E635] border border-[#A3E635]/15">
                         {planStatus.leadsRemaining} leads remaining
                       </span>
                     )}
                   </div>
-                  {panelOpen ? <ChevronUp size={15} className="text-[#4B6856]" /> : <ChevronDown size={15} className="text-[#4B6856]" />}
+                  {panelOpen ? <ChevronUp size={15} className="text-[var(--ds-muted)]" /> : <ChevronDown size={15} className="text-[var(--ds-muted)]" />}
                 </button>
 
                 {panelOpen && (
                 <div className="p-5">
                   <div className="grid grid-cols-4 gap-3 mb-3">
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Keyword / Business Type</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Keyword / Business Type</label>
                       <input value={form.keyword} onChange={e => setForm(f=>({...f,keyword:e.target.value}))}
                         placeholder="e.g. Dentists, Restaurants, Gyms"
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm" />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">City / Location</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">City / Location</label>
                       <input value={form.location} onChange={e => setForm(f=>({...f,location:e.target.value}))}
                         placeholder="e.g. Mumbai, New York, London"
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm" />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Category</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Category</label>
                       <select className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
                         {SCRAPER_CATS.map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Max Results</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Max Results</label>
                       <select value={form.maxResults} onChange={e => setForm(f=>({...f,maxResults:e.target.value}))}
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
                         {['10','20','50'].map(n => <option key={n} value={n}>{n} results</option>)}
@@ -607,7 +637,7 @@ function DashboardInner() {
                   </div>
                   <div className="grid grid-cols-4 gap-3 mb-4">
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Min Rating</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Rating</label>
                       <select value={form.minRating} onChange={e => setForm(f=>({...f,minRating:e.target.value}))}
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
                         <option value="0">Any Rating</option>
@@ -617,7 +647,7 @@ function DashboardInner() {
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Min Reviews</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Reviews</label>
                       <select value={form.minReviews} onChange={e => setForm(f=>({...f,minReviews:e.target.value}))}
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
                         <option value="0">Any</option>
@@ -628,7 +658,7 @@ function DashboardInner() {
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] text-[#4B6856] uppercase tracking-widest block mb-1.5 font-semibold">Strategy</label>
+                      <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Strategy</label>
                       <select value={form.strategy} onChange={e => setForm(f=>({...f,strategy:e.target.value}))}
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm cursor-pointer">
                         <option value="fast">Fast (1–5 min)</option>
@@ -646,10 +676,10 @@ function DashboardInner() {
                             <input type="checkbox" className="sr-only"
                               checked={form[key as 'hasWebsite'|'hasPhone']}
                               onChange={e => setForm(f=>({...f,[key]:e.target.checked}))} />
-                            <div className={`absolute inset-0 rounded-full border transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'bg-[#16A34A]/30 border-[#16A34A]' : 'bg-[#0A110B] border-[#1A321E]'}`} />
-                            <div className={`absolute top-[3px] left-[3px] w-[14px] h-[14px] rounded-full transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'translate-x-4 bg-[#4ADE80]' : 'bg-[#4B6856]'}`} />
+                            <div className={`absolute inset-0 rounded-full border transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'bg-[#16A34A]/30 border-[#16A34A]' : 'bg-[var(--ds-bg2)] border-[var(--ds-bd2)]'}`} />
+                            <div className={`absolute top-[3px] left-[3px] w-[14px] h-[14px] rounded-full transition-all ${form[key as 'hasWebsite'|'hasPhone'] ? 'translate-x-4 bg-[#4ADE80]' : 'bg-[var(--ds-muted)]'}`} />
                           </div>
-                          <span className="text-xs text-[#94A3B8] font-medium">{label}</span>
+                          <span className="text-xs text-[var(--ds-dim)] font-medium">{label}</span>
                         </label>
                       ))}
                     </div>
@@ -661,10 +691,10 @@ function DashboardInner() {
                     </button>
                     {scraping && (
                       <div className="flex-1">
-                        <div className="w-full h-1.5 bg-[#0A110B] rounded-full overflow-hidden border border-[#1A321E] mb-1">
+                        <div className="w-full h-1.5 bg-[var(--ds-bg2)] rounded-full overflow-hidden border border-[var(--ds-bd2)] mb-1">
                           <div className="h-full bg-gradient-to-r from-[#166534] via-[#4ADE80] to-[#A3E635] rounded-full transition-all duration-300" style={{width:`${progress}%`}} />
                         </div>
-                        <div className="text-[11px] text-[#4B6856] font-medium">{progressTxt}</div>
+                        <div className="text-[11px] text-[var(--ds-muted)] font-medium">{progressTxt}</div>
                       </div>
                     )}
                   </div>
@@ -675,13 +705,13 @@ function DashboardInner() {
 
               {/* Scraper empty state */}
               {isScraperView && scraperResults.length === 0 && !scraping && (
-                <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] py-16 text-center">
+                <div className="rounded-[14px] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] py-16 text-center">
                   <div className="w-14 h-14 rounded-2xl bg-[#A3E635]/5 border border-[#A3E635]/10 flex items-center justify-center mx-auto mb-4">
                     <Search size={26} className="text-[#4ADE80]" />
                   </div>
-                  <div className="text-[#94A3B8] font-bold mb-1">No results yet</div>
-                  <div className="text-xs text-[#4B6856]">Enter a keyword and location, then click Start Scraping</div>
-                  <div className="text-xs text-[#4B6856] mt-1">Your saved leads are in the <button onClick={() => setView('leads')} className="text-[#4ADE80] underline cursor-pointer">All Leads</button> tab</div>
+                  <div className="text-[var(--ds-dim)] font-bold mb-1">No results yet</div>
+                  <div className="text-xs text-[var(--ds-muted)]">Enter a keyword and location, then click Start Scraping</div>
+                  <div className="text-xs text-[var(--ds-muted)] mt-1">Your saved leads are in the <button onClick={() => setView('leads')} className="text-[#4ADE80] underline cursor-pointer">All Leads</button> tab</div>
                 </div>
               )}
 
@@ -690,7 +720,7 @@ function DashboardInner() {
                 {/* Filter Bar */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="relative">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B6856] pointer-events-none" />
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ds-muted)] pointer-events-none" />
                     <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search leads..."
                       className="input-dark w-[220px] pl-8 pr-3 py-2 rounded-lg text-sm" />
                   </div>
@@ -705,7 +735,7 @@ function DashboardInner() {
                       {(f.opts as {v:string;l:string}[]).map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                     </select>
                   ))}
-                  <span className="ml-auto text-xs text-[#4B6856] bg-[#0A110B] border border-[#122016] px-3 py-2 rounded-lg font-semibold">{filtered.length} leads</span>
+                  <span className="ml-auto text-xs text-[var(--ds-muted)] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] px-3 py-2 rounded-lg font-semibold">{filtered.length} leads</span>
                 </div>
 
                 {/* Bulk bar */}
@@ -713,54 +743,54 @@ function DashboardInner() {
                   <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm"
                     style={{background:'linear-gradient(135deg,rgba(163,230,53,0.07),rgba(74,222,128,0.04))',borderColor:'rgba(163,230,53,0.2)'}}>
                     <span className="text-[#A3E635] font-bold text-xs">{selected.size} selected</span>
-                    <div className="w-px h-4 bg-[#1A321E]" />
+                    <div className="w-px h-4 bg-[var(--ds-bd2)]" />
                     <button onClick={() => bulkSetStatus('qualified')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer">Mark Qualified</button>
                     <button onClick={() => bulkSetStatus('contacted')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-pointer">Mark Contacted</button>
                     <button onClick={() => bulkSetStatus('lost')} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 cursor-pointer">Mark Lost</button>
-                    <button onClick={bulkExport} className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/[0.05] text-[#94A3B8] border border-[#122016] cursor-pointer">Export Selected</button>
+                    <button onClick={bulkExport} className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/[0.05] text-[var(--ds-dim)] border border-[var(--ds-bd1)] cursor-pointer">Export Selected</button>
                     <button onClick={bulkDelete} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors cursor-pointer">Delete Selected</button>
-                    <button onClick={() => setSelected(new Set())} className="ml-auto text-[#4B6856] hover:text-white cursor-pointer"><X size={14} /></button>
+                    <button onClick={() => setSelected(new Set())} className="ml-auto text-[var(--ds-muted)] hover:text-[var(--ds-text)] cursor-pointer"><X size={14} /></button>
                   </div>
                 )}
 
                 {/* Table */}
-                <div className="rounded-[14px] bg-[#0A110B] border border-[#122016] overflow-hidden">
+                <div className="rounded-[14px] bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm" style={{minWidth:'960px'}}>
                       <thead>
-                        <tr className="bg-[#070D08] border-b border-[#122016]">
+                        <tr className="bg-[var(--ds-bg1)] border-b border-[var(--ds-bd1)]">
                           <th className="p-3 w-9"><input type="checkbox" onChange={selectAll} checked={selected.size===filtered.length && filtered.length>0} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></th>
                           {['Business Name','Phone','Address','Rating','Reviews','Website','Category','Status','Actions'].map(h => (
-                            <th key={h} className="px-3 py-3 text-left text-[10.5px] text-[#4B6856] uppercase tracking-[1.5px] font-bold whitespace-nowrap">{h}</th>
+                            <th key={h} className="px-3 py-3 text-left text-[10.5px] text-[var(--ds-muted)] uppercase tracking-[1.5px] font-bold whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {paged.length === 0 ? (
-                          <tr><td colSpan={10} className="py-12 text-center text-xs text-[#4B6856]">No leads match your filters</td></tr>
+                          <tr><td colSpan={10} className="py-12 text-center text-xs text-[var(--ds-muted)]">No leads match your filters</td></tr>
                         ) : paged.map((lead, i) => {
                           const realIdx = (page - 1) * PER_PAGE + i
                           return (
-                            <tr key={realIdx} className={`border-b border-[#0D160E]/60 transition-colors hover:bg-[#A3E635]/[0.02] ${selected.has(realIdx) ? 'bg-[#A3E635]/[0.04]' : ''}`}>
+                            <tr key={realIdx} className={`border-b border-[var(--ds-bg3)]/60 transition-colors hover:bg-[#A3E635]/[0.02] ${selected.has(realIdx) ? 'bg-[#A3E635]/[0.04]' : ''}`}>
                               <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></td>
                               <td className="px-3 py-3 max-w-[170px]">
-                                <div className="font-semibold text-[#E8EDF5] truncate" title={lead.name}>{lead.name}</div>
+                                <div className="font-semibold text-[var(--ds-text)] truncate" title={lead.name}>{lead.name}</div>
                               </td>
-                              <td className="px-3 py-3 text-[#94A3B8] whitespace-nowrap text-[12px] font-medium">{lead.phone || '—'}</td>
+                              <td className="px-3 py-3 text-[var(--ds-dim)] whitespace-nowrap text-[12px] font-medium">{lead.phone || '—'}</td>
                               <td className="px-3 py-3 max-w-[190px]">
-                                <div className="text-[#4B6856] text-xs truncate" title={lead.address}>{lead.address}</div>
+                                <div className="text-[var(--ds-muted)] text-xs truncate" title={lead.address}>{lead.address}</div>
                               </td>
                               <td className="px-3 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-1">
                                   <Star size={11} className="text-amber-400 fill-amber-400" />
-                                  <span className="text-[12px] font-semibold text-[#94A3B8]">{lead.rating || '—'}</span>
+                                  <span className="text-[12px] font-semibold text-[var(--ds-dim)]">{lead.rating || '—'}</span>
                                 </div>
                               </td>
-                              <td className="px-3 py-3 text-[12px] font-medium text-[#4B6856] whitespace-nowrap">{lead.reviews ? `(${Number(lead.reviews).toLocaleString()})` : '—'}</td>
+                              <td className="px-3 py-3 text-[12px] font-medium text-[var(--ds-muted)] whitespace-nowrap">{lead.reviews ? `(${Number(lead.reviews).toLocaleString()})` : '—'}</td>
                               <td className="px-3 py-3 max-w-[140px]">
                                 {lead.website
                                   ? <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener" className="text-[#4ADE80] text-xs truncate block hover:text-[#A3E635] hover:underline" title={lead.website}>{lead.website.replace(/^https?:\/\//,'').replace(/\/$/,'')}</a>
-                                  : <span className="text-[#1A321E] text-xs">—</span>}
+                                  : <span className="text-[var(--ds-muted)] text-xs">—</span>}
                               </td>
                               <td className="px-3 py-3 whitespace-nowrap">
                                 <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-[#A3E635]/8 text-[#86EFAC] border border-[#A3E635]/15">{lead.category}</span>
@@ -773,10 +803,10 @@ function DashboardInner() {
                               </td>
                               <td className="px-3 py-3">
                                 <div className="flex gap-1">
-                                  <button onClick={() => setModalLead(lead)} title="View" className="w-7 h-7 rounded-md flex items-center justify-center border border-[#1A321E] text-[#4B6856] hover:text-[#4ADE80] hover:border-[#4ADE80]/30 hover:bg-[#4ADE80]/10 transition-all cursor-pointer">
+                                  <button onClick={() => setModalLead(lead)} title="View" className="w-7 h-7 rounded-md flex items-center justify-center border border-[var(--ds-bd2)] text-[var(--ds-muted)] hover:text-[#4ADE80] hover:border-[#4ADE80]/30 hover:bg-[#4ADE80]/10 transition-all cursor-pointer">
                                     <Eye size={12} />
                                   </button>
-                                  <button onClick={() => deleteLead(realIdx)} title="Delete" className="w-7 h-7 rounded-md flex items-center justify-center border border-[#1A321E] text-[#4B6856] hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer">
+                                  <button onClick={() => deleteLead(realIdx)} title="Delete" className="w-7 h-7 rounded-md flex items-center justify-center border border-[var(--ds-bd2)] text-[var(--ds-muted)] hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all cursor-pointer">
                                     <Trash2 size={12} />
                                   </button>
                                 </div>
@@ -788,22 +818,22 @@ function DashboardInner() {
                     </table>
                   </div>
                   {totalPages > 1 && (
-                    <div className="flex items-center gap-1.5 px-4 py-3 border-t border-[#122016] bg-[#070D08]">
+                    <div className="flex items-center gap-1.5 px-4 py-3 border-t border-[var(--ds-bd1)] bg-[var(--ds-bg1)]">
                       <button onClick={() => setPage(p=>Math.max(1,p-1))} disabled={page===1}
-                        className="min-w-[32px] h-8 px-2 rounded-lg bg-[#0A110B] border border-[#122016] text-[#4B6856] text-xs font-semibold cursor-pointer disabled:opacity-35 hover:border-[#A3E635]/30 hover:text-white transition-all">‹</button>
+                        className="min-w-[32px] h-8 px-2 rounded-lg bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] text-[var(--ds-muted)] text-xs font-semibold cursor-pointer disabled:opacity-35 hover:border-[#A3E635]/30 hover:text-[var(--ds-text)] transition-all">‹</button>
                       {Array.from({length:Math.min(5,totalPages)},(_,i)=>{
                         let p = i+1
                         if (totalPages>5) { if (page<=3) p=i+1; else if (page>=totalPages-2) p=totalPages-4+i; else p=page-2+i }
                         return (
                           <button key={p} onClick={() => setPage(p)}
-                            className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all ${page===p ? 'bg-gradient-to-br from-[#16A34A] to-[#15803D] text-white border-[#16A34A] shadow-lg shadow-[#A3E635]/20' : 'bg-[#0A110B] border border-[#122016] text-[#4B6856] hover:text-white hover:border-[#A3E635]/30'}`}>
+                            className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all ${page===p ? 'bg-gradient-to-br from-[#16A34A] to-[#15803D] text-[var(--ds-text)] border-[#16A34A] shadow-lg shadow-[#A3E635]/20' : 'bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] text-[var(--ds-muted)] hover:text-[var(--ds-text)] hover:border-[#A3E635]/30'}`}>
                             {p}
                           </button>
                         )
                       })}
                       <button onClick={() => setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
-                        className="min-w-[32px] h-8 px-2 rounded-lg bg-[#0A110B] border border-[#122016] text-[#4B6856] text-xs font-semibold cursor-pointer disabled:opacity-35 hover:border-[#A3E635]/30 hover:text-white transition-all">›</button>
-                      <span className="ml-auto text-[11.5px] text-[#4B6856] font-medium">
+                        className="min-w-[32px] h-8 px-2 rounded-lg bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] text-[var(--ds-muted)] text-xs font-semibold cursor-pointer disabled:opacity-35 hover:border-[#A3E635]/30 hover:text-[var(--ds-text)] transition-all">›</button>
+                      <span className="ml-auto text-[11.5px] text-[var(--ds-muted)] font-medium">
                         {(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE,filtered.length)} of {filtered.length}
                       </span>
                     </div>
@@ -820,10 +850,10 @@ function DashboardInner() {
       {/* Lead Detail Modal */}
       {modalLead && (
         <div className="fixed inset-0 bg-black/65 backdrop-blur-md z-[100] flex items-center justify-center" onClick={() => setModalLead(null)}>
-          <div className="bg-[#0A110B] border border-[#1A321E] rounded-2xl w-[580px] max-h-[88vh] flex flex-col overflow-hidden animate-[pop_180ms_cubic-bezier(0.34,1.56,0.64,1)]" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#122016]">
-              <span className="text-base font-bold text-white">Lead Details</span>
-              <button onClick={() => setModalLead(null)} className="w-7 h-7 rounded-lg border border-[#122016] text-[#4B6856] hover:text-white hover:bg-[#122016] flex items-center justify-center cursor-pointer text-sm">✕</button>
+          <div className="bg-[var(--ds-bg2)] border border-[var(--ds-bd2)] rounded-2xl w-[580px] max-h-[88vh] flex flex-col overflow-hidden animate-[pop_180ms_cubic-bezier(0.34,1.56,0.64,1)]" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--ds-bd1)]">
+              <span className="text-base font-bold text-[var(--ds-text)]">Lead Details</span>
+              <button onClick={() => setModalLead(null)} className="w-7 h-7 rounded-lg border border-[var(--ds-bd1)] text-[var(--ds-muted)] hover:text-[var(--ds-text)] hover:bg-[var(--ds-bd1)] flex items-center justify-center cursor-pointer text-sm">✕</button>
             </div>
             <div className="p-5 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-3">
@@ -840,16 +870,16 @@ function DashboardInner() {
                   { label:'Keyword',  value:modalLead.keyword || '—' },
                 ].map(({ label, value, full }) => (
                   <div key={label} className={full ? 'col-span-2' : ''}>
-                    <div className="text-[10px] font-bold text-[#4B6856] uppercase tracking-[1.5px] mb-1">{label}</div>
-                    <div className="text-[13px] text-[#94A3B8] font-medium break-all">{value}</div>
+                    <div className="text-[10px] font-bold text-[var(--ds-muted)] uppercase tracking-[1.5px] mb-1">{label}</div>
+                    <div className="text-[13px] text-[var(--ds-dim)] font-medium break-all">{value}</div>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex gap-2 px-5 py-4 border-t border-[#122016] bg-[#070D08]">
+            <div className="flex gap-2 px-5 py-4 border-t border-[var(--ds-bd1)] bg-[var(--ds-bg1)]">
               {modalLead.phone && <a href={`tel:${modalLead.phone}`} className="btn-lime px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5"><Phone size={12} /> Call</a>}
-              {modalLead.website && <a href={modalLead.website.startsWith('http') ? modalLead.website : `https://${modalLead.website}`} target="_blank" rel="noopener" className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#1A321E] text-[#94A3B8] hover:text-white flex items-center gap-1.5 cursor-pointer"><Globe size={12} /> Visit Site</a>}
-              <button onClick={() => setModalLead(null)} className="ml-auto px-4 py-2 rounded-lg text-xs font-semibold border border-[#122016] text-[#4B6856] hover:text-white cursor-pointer">Close</button>
+              {modalLead.website && <a href={modalLead.website.startsWith('http') ? modalLead.website : `https://${modalLead.website}`} target="_blank" rel="noopener" className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--ds-bd2)] text-[var(--ds-dim)] hover:text-[var(--ds-text)] flex items-center gap-1.5 cursor-pointer"><Globe size={12} /> Visit Site</a>}
+              <button onClick={() => setModalLead(null)} className="ml-auto px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--ds-bd1)] text-[var(--ds-muted)] hover:text-[var(--ds-text)] cursor-pointer">Close</button>
             </div>
           </div>
         </div>
@@ -858,7 +888,7 @@ function DashboardInner() {
       {/* Clear Confirm */}
       {delConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center">
-          <div className="bg-[#0A110B] border border-[#1A321E] rounded-2xl w-[340px] overflow-hidden shadow-2xl">
+          <div className="bg-[var(--ds-bg2)] border border-[var(--ds-bd2)] rounded-2xl w-[340px] overflow-hidden shadow-2xl">
             <div className="flex justify-center pt-6">
               <div className="w-12 h-12 rounded-[14px] bg-red-500/10 border border-red-500/20 flex items-center justify-center">
                 <Trash2 size={22} className="text-red-400" />
@@ -867,19 +897,19 @@ function DashboardInner() {
             <div className="px-6 pb-4 pt-3 text-center">
               {isScraperView ? (
                 <>
-                  <div className="text-base font-bold text-white mb-1.5">Clear Scraper Results?</div>
-                  <div className="text-xs text-[#4B6856] leading-relaxed">Removes {scraperResults.length} results from view. <span className="text-[#4ADE80]">Saved leads remain safe in All Leads.</span></div>
+                  <div className="text-base font-bold text-[var(--ds-text)] mb-1.5">Clear Scraper Results?</div>
+                  <div className="text-xs text-[var(--ds-muted)] leading-relaxed">Removes {scraperResults.length} results from view. <span className="text-[#4ADE80]">Saved leads remain safe in All Leads.</span></div>
                 </>
               ) : (
                 <>
-                  <div className="text-base font-bold text-white mb-1.5">Delete All Leads?</div>
-                  <div className="text-xs text-[#4B6856] leading-relaxed">Permanently deletes all <span className="text-[#94A3B8] font-semibold">{dbLeads.length} leads</span> from your account.</div>
+                  <div className="text-base font-bold text-[var(--ds-text)] mb-1.5">Delete All Leads?</div>
+                  <div className="text-xs text-[var(--ds-muted)] leading-relaxed">Permanently deletes all <span className="text-[var(--ds-dim)] font-semibold">{dbLeads.length} leads</span> from your account.</div>
                 </>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2.5 px-6 pb-5">
-              <button onClick={() => setDelConfirm(false)} className="py-2.5 rounded-xl border border-[#1A321E] text-[#94A3B8] text-sm font-semibold hover:text-white hover:bg-white/[0.05] cursor-pointer transition-all">Cancel</button>
-              <button onClick={handleClearAll} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-white text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">
+              <button onClick={() => setDelConfirm(false)} className="py-2.5 rounded-xl border border-[var(--ds-bd2)] text-[var(--ds-dim)] text-sm font-semibold hover:text-[var(--ds-text)] hover:bg-white/[0.05] cursor-pointer transition-all">Cancel</button>
+              <button onClick={handleClearAll} className="py-2.5 rounded-xl bg-gradient-to-br from-red-600 to-red-500 text-[var(--ds-text)] text-sm font-semibold cursor-pointer hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20">
                 {isScraperView ? 'Clear Results' : 'Delete All'}
               </button>
             </div>
@@ -890,7 +920,7 @@ function DashboardInner() {
       {/* Toast */}
       {toast && (
         <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-medium shadow-2xl animate-[tup_200ms_ease]
-          ${toast.ok ? 'bg-[#0C1510] border-emerald-500/30 text-emerald-400' : 'bg-[#0C0A0A] border-red-500/30 text-red-400'}`}>
+          ${toast.ok ? 'bg-[var(--ds-bg2)] border-emerald-500/30 text-emerald-400' : 'bg-[var(--ds-bg2)] border-red-500/30 text-red-400'}`}>
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${toast.ok ? 'bg-emerald-400' : 'bg-red-400'}`} />
           {toast.msg}
         </div>
@@ -902,7 +932,7 @@ function DashboardInner() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#050A06] flex items-center justify-center text-[#4B6856]">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--ds-bg0)] flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#A3E635]/30 border-t-[#A3E635] rounded-full animate-spin" /></div>}>
       <DashboardInner />
     </Suspense>
   )

@@ -19,6 +19,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={baiJamjuree.variable}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('lf-theme')||'dark';if(t==='dark')document.documentElement.classList.add('dark')}catch(e){}` }} />
+      </head>
       <body style={{ fontFamily: 'var(--font-bai), sans-serif' }}>
         <Providers>{children}</Providers>
       </body>

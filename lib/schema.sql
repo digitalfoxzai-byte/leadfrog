@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 CREATE TABLE IF NOT EXISTS EmailOtp (
   id        INT AUTO_INCREMENT PRIMARY KEY,
   email     VARCHAR(254) NOT NULL,
-  purpose   ENUM('signup','reset') NOT NULL,
+  purpose   ENUM('signup','reset','email_change') NOT NULL,
   codeHash  VARCHAR(64) NOT NULL,
   expiresAt DATETIME NOT NULL,
   attempts  INT NOT NULL DEFAULT 0,
