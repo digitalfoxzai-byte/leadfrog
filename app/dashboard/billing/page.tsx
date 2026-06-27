@@ -7,25 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Users, CreditCard, RefreshCw, Calendar, ChevronDown, ChevronUp,
   CheckCircle, Zap, Crown, Shield, Eye, LogOut, Settings,
-  TrendingUp, Target, Loader2, Sun, Moon,
+  TrendingUp, Target, Loader2,
 } from 'lucide-react'
-
-function useTheme() {
-  const [dark, setDark] = useState(true)
-  useEffect(() => {
-    const stored = localStorage.getItem('lf-theme')
-    const isDark = stored ? stored === 'dark' : true
-    setDark(isDark)
-    document.documentElement.classList.toggle('dark', isDark)
-  }, [])
-  const toggle = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    localStorage.setItem('lf-theme', next ? 'dark' : 'light')
-  }
-  return { dark, toggle }
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const window: any
@@ -119,7 +102,6 @@ function loadRazorpay(): Promise<boolean> {
 }
 
 export default function BillingPage() {
-  const { dark, toggle: toggleTheme } = useTheme()
   const { data: session, status } = useSession()
   const router = useRouter()
 
@@ -285,7 +267,7 @@ export default function BillingPage() {
           <Image src="/logo.png" alt="LeadFrog" width={110} height={44} className="object-contain" />
           <span className="text-[8px] text-[var(--ds-muted)] tracking-[2px] uppercase">Lead Intelligence</span>
         </div>
-        <nav className="flex-1 p-3 text-sm overflow-y-auto">
+        <nav className="flex-1 p-3 text-sm overflow-hidden">
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
           {[
             { label: 'Scraper',   icon: Search, href: '/dashboard' },
@@ -319,13 +301,6 @@ export default function BillingPage() {
             <LogOut size={14} /> Sign Out
           </button>
         </div>
-        <div className="p-3 flex items-center justify-between border-t border-[var(--ds-bd1)]">
-          <span className="text-[10px] text-[var(--ds-muted)]">LeadFrog © 2025</span>
-          <button onClick={toggleTheme} title="Toggle theme"
-            className="w-7 h-7 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
-            {dark ? <Sun size={12} /> : <Moon size={12} />}
-          </button>
-        </div>
       </aside>
 
       {/* Main */}
@@ -338,16 +313,10 @@ export default function BillingPage() {
               <h1 className="text-2xl font-bold tracking-tight text-[var(--ds-text)] mb-1">Billing &amp; Subscription</h1>
               <p className="text-[var(--ds-muted)] text-sm">Manage your plan, view invoices, and upgrade anytime</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={toggleTheme} title="Toggle theme"
-                className="w-9 h-9 rounded-xl border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
-                {dark ? <Sun size={15} /> : <Moon size={15} />}
-              </button>
-              <button onClick={fetchData}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] text-[var(--ds-muted)] hover:text-[var(--ds-text)] transition-all text-sm cursor-pointer">
-                <RefreshCw size={13} /> Refresh
-              </button>
-            </div>
+            <button onClick={fetchData}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--ds-bg2)] border border-[var(--ds-bd1)] text-[var(--ds-muted)] hover:text-[var(--ds-text)] transition-all text-sm cursor-pointer">
+              <RefreshCw size={13} /> Refresh
+            </button>
           </div>
 
           {/* Current Plan Card */}

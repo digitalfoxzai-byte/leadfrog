@@ -3,35 +3,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Light mode (default) ───────────────────────────────────────────── */
 :root {
-  --bg: #F0F5F1;
+  --bg: #050A06;
   --lime: #A3E635;
   --green-dark: #166534;
-
-  --ds-bg0: #F0F5F1;
-  --ds-bg1: #FFFFFF;
-  --ds-bg2: #F5FAF5;
-  --ds-bg3: #EBF4EC;
-  --ds-bd1: #D0E8D5;
-  --ds-bd2: #B5D9BC;
-  --ds-muted: #3B6148;
-  --ds-dim: #52687A;
-  --ds-text: #0F1A0F;
-
-  --input-bg: rgba(235, 244, 236, 0.9);
-  --input-border: #C5DEC9;
-  --scrollbar-track: #EBF4EC;
-  --scrollbar-thumb: #B5D9BC;
-  --glass-bg: rgba(245, 250, 245, 0.7);
-  --glass-border: rgba(163, 230, 53, 0.15);
-  --ds-topbar-bg: rgba(255, 255, 255, 0.85);
-  --ds-active-bg: rgba(163, 230, 53, 0.1);
-}
-
-/* ── Dark mode ──────────────────────────────────────────────────────── */
-.dark {
-  --bg: #050A06;
 
   --ds-bg0: #050A06;
   --ds-bg1: #070D08;

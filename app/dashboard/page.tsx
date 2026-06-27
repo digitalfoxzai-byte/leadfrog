@@ -6,25 +6,8 @@ import Image from 'next/image'
 import {
   Search, Download, Trash2, LogOut, Users, CheckCircle, Phone, Globe,
   ChevronDown, ChevronUp, X, Star, RefreshCw, Settings, Eye, FileJson,
-  Lock, Zap, Check, Crown, CreditCard, Sun, Moon,
+  Lock, Zap, Check, Crown, CreditCard,
 } from 'lucide-react'
-
-function useTheme() {
-  const [dark, setDark] = useState(true)
-  useEffect(() => {
-    const stored = localStorage.getItem('lf-theme')
-    const isDark = stored ? stored === 'dark' : true
-    setDark(isDark)
-    document.documentElement.classList.toggle('dark', isDark)
-  }, [])
-  const toggle = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    localStorage.setItem('lf-theme', next ? 'dark' : 'light')
-  }
-  return { dark, toggle }
-}
 
 interface Lead {
   id?: number; name: string; phone: string; email?: string; address: string
@@ -68,7 +51,6 @@ const UPGRADE_PLANS = [
 declare const window: any
 
 function DashboardInner() {
-  const { dark, toggle: toggleTheme } = useTheme()
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -391,7 +373,7 @@ function DashboardInner() {
           <Image src="/logo.png" alt="LeadFrog" width={110} height={44} className="object-contain" />
           <span className="text-[8px] text-[var(--ds-muted)] tracking-[2px] uppercase">Lead Intelligence</span>
         </div>
-        <nav className="flex-1 p-3 text-sm overflow-y-auto">
+        <nav className="flex-1 p-3 text-sm overflow-hidden">
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
           <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left cursor-pointer border-l-2 transition-all text-[13.5px] font-medium ${isScraperView ? 'bg-[var(--ds-active-bg)] text-[#A3E635] border-[#4ADE80]' : 'text-[var(--ds-muted)] border-transparent hover:text-[var(--ds-dim)] hover:bg-white/[0.03]'}`}>
             <Search size={14} /> Scraper
@@ -431,13 +413,6 @@ function DashboardInner() {
           )}
           <button onClick={() => signOut({callbackUrl:'/login'})} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[var(--ds-muted)] hover:text-red-400 hover:bg-white/[0.03] text-left cursor-pointer text-[13.5px]">
             <LogOut size={14} /> Sign Out
-          </button>
-        </div>
-        <div className="p-3 flex items-center justify-between border-t border-[var(--ds-bd1)]">
-          <span className="text-[10px] text-[var(--ds-muted)]">LeadFrog © 2025</span>
-          <button onClick={toggleTheme} title="Toggle theme"
-            className="w-7 h-7 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
-            {dark ? <Sun size={12} /> : <Moon size={12} />}
           </button>
         </div>
       </aside>
@@ -551,9 +526,6 @@ function DashboardInner() {
                     )}
                   </div>
                 )}
-                <button onClick={toggleTheme} title="Toggle theme" className="w-8 h-8 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
-                  {dark ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
                 <button onClick={() => setDelConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--ds-dim)] border border-[var(--ds-bd1)] hover:border-red-500/30 hover:text-red-400 transition-all cursor-pointer">
                   <Trash2 size={13} /> {isScraperView ? 'Clear Results' : 'Clear All'}
                 </button>

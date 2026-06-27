@@ -3,32 +3,13 @@ import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Search, Users, CreditCard, Settings, LogOut, User, Mail, Lock, KeyRound, CheckCircle, AlertCircle, Eye, EyeOff, Sun, Moon } from 'lucide-react'
-
-function useTheme() {
-  const [dark, setDark] = useState(true)
-  useEffect(() => {
-    const stored = localStorage.getItem('lf-theme')
-    const isDark = stored ? stored === 'dark' : true
-    setDark(isDark)
-    document.documentElement.classList.toggle('dark', isDark)
-  }, [])
-  const toggle = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    localStorage.setItem('lf-theme', next ? 'dark' : 'light')
-  }
-  return { dark, toggle }
-}
+import { Search, Users, CreditCard, Settings, LogOut, User, Mail, Lock, KeyRound, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 type Toast = { msg: string; ok: boolean } | null
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { dark, toggle } = useTheme()
-
   const [profile, setProfile] = useState({ name: '', email: '' })
   const [loading, setLoading] = useState(true)
 
@@ -143,7 +124,7 @@ export default function SettingsPage() {
           <Image src="/logo.png" alt="LeadFrog" width={110} height={44} className="object-contain" />
           <span className="text-[8px] text-[var(--ds-muted)] tracking-[2px] uppercase">Lead Intelligence</span>
         </div>
-        <nav className="flex-1 p-3 text-sm overflow-y-auto">
+        <nav className="flex-1 p-3 text-sm overflow-hidden">
           <div className="text-[9px] text-[var(--ds-muted)] uppercase tracking-[2.5px] px-3 py-2 font-semibold">Workspace</div>
           {navItems.map(({ label, icon: Icon, href }) => (
             <button key={label} onClick={() => router.push(href)}
@@ -168,13 +149,6 @@ export default function SettingsPage() {
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-red-400 hover:bg-red-500/[0.05] transition-all text-[13px] cursor-pointer">
             <LogOut size={14} /> Sign Out
           </button>
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-[10px] text-[var(--ds-muted)] opacity-50">LeadFrog © 2025</span>
-            <button onClick={toggle} title="Toggle theme"
-              className="w-7 h-7 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
-              {dark ? <Sun size={12} /> : <Moon size={12} />}
-            </button>
-          </div>
         </div>
       </aside>
 
@@ -187,10 +161,6 @@ export default function SettingsPage() {
             <span className="text-[var(--ds-text)] font-semibold text-sm">Account Settings</span>
             <span className="text-[var(--ds-muted)] text-xs ml-2">· {profile.name}</span>
           </div>
-          <button onClick={toggle} title="Toggle theme"
-            className="w-8 h-8 rounded-lg border border-[var(--ds-bd1)] flex items-center justify-center text-[var(--ds-muted)] hover:text-[#A3E635] hover:border-[#A3E635]/40 transition-all cursor-pointer">
-            {dark ? <Sun size={14} /> : <Moon size={14} />}
-          </button>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
