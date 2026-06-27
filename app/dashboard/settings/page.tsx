@@ -31,11 +31,16 @@ export default function SettingsPage() {
   const [savingPw, setSavingPw] = useState(false)
 
   const [toast, setToast] = useState<Toast>(null)
+  const [usage, setUsage] = useState<{ plan: string; label?: string; leadsUsed: number; leadsLimit: number; percentUsed: number; daysLeft: number } | null>(null)
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3500)
   }
+
+  useEffect(() => {
+    fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => { if (d) setUsage(d) })
+  }, [])
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
@@ -148,6 +153,28 @@ export default function SettingsPage() {
             )
           ))}
         </nav>
+        {usage && usage.plan !== 'admin' && (
+          <div className="mx-3 mb-2 p-3 rounded-xl border border-[var(--ds-bd1)] bg-[var(--ds-bg2)]">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-[var(--ds-muted)] uppercase tracking-widest">
+                {usage.plan === 'free' ? 'Free Trial' : (usage.label || usage.plan)}
+              </span>
+              {usage.plan === 'free' && usage.daysLeft > 0 && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${usage.daysLeft <= 1 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                  {usage.daysLeft}d left
+                </span>
+              )}
+            </div>
+            <div className="flex justify-between text-[10px] text-[var(--ds-muted)] mb-1">
+              <span>Leads used</span>
+              <span className="text-[var(--ds-dim)] font-semibold">{usage.leadsUsed}/{usage.leadsLimit === -1 ? '∞' : usage.leadsLimit}</span>
+            </div>
+            <div className="h-1.5 bg-[var(--ds-bg3)] rounded-full border border-[var(--ds-bd1)] overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${usage.percentUsed >= 90 ? 'bg-red-500' : usage.percentUsed >= 70 ? 'bg-amber-400' : 'bg-[#4ADE80]'}`}
+                style={{ width: `${usage.percentUsed}%` }} />
+            </div>
+          </div>
+        )}
         <div className="p-3 border-t border-[var(--ds-bd1)]">
           <button onClick={() => signOut({ callbackUrl: '/login' })}
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-red-400 hover:bg-red-500/[0.05] transition-all text-[13px] cursor-pointer">

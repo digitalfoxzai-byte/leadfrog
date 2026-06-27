@@ -13,7 +13,7 @@ const baiJamjuree = Bai_Jamjuree({
 export const metadata: Metadata = {
   title: 'LeadFrog — Lead Intelligence Platform',
   description: 'Scrape Google Maps leads, manage contacts, and grow your business with LeadFrog.',
-  icons: { icon: '/logo.png' },
+  icons: { icon: '/fav.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

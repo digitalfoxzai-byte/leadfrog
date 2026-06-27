@@ -283,6 +283,28 @@ export default function BillingPage() {
             <Settings size={14} /> Settings
           </Link>
         </nav>
+        {usage && usage.plan !== 'admin' && (
+          <div className="mx-3 mb-2 p-3 rounded-xl border border-[var(--ds-bd1)] bg-[var(--ds-bg2)]">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-[var(--ds-muted)] uppercase tracking-widest">
+                {usage.plan === 'free' ? 'Free Trial' : usage.label}
+              </span>
+              {usage.plan === 'free' && usage.daysLeft > 0 && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${usage.daysLeft <= 1 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                  {usage.daysLeft}d left
+                </span>
+              )}
+            </div>
+            <div className="flex justify-between text-[10px] text-[var(--ds-muted)] mb-1">
+              <span>Leads used</span>
+              <span className="text-[var(--ds-dim)] font-semibold">{usage.leadsUsed}/{usage.leadsLimit === -1 ? '∞' : usage.leadsLimit}</span>
+            </div>
+            <div className="h-1.5 bg-[var(--ds-bg3)] rounded-full border border-[var(--ds-bd1)] overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${usage.percentUsed >= 90 ? 'bg-red-500' : usage.percentUsed >= 70 ? 'bg-amber-400' : 'bg-[#4ADE80]'}`}
+                style={{ width: `${usage.percentUsed}%` }} />
+            </div>
+          </div>
+        )}
         <div className="p-3 space-y-1 text-sm border-t border-[var(--ds-bd1)]">
           {(session?.user as { role?: string })?.role === 'admin' && (
             <button onClick={() => router.push('/admin')}
