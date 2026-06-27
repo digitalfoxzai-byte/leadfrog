@@ -14,8 +14,11 @@ export async function GET(req: NextRequest) {
   const limit = Number(searchParams.get('limit') || 50)
   const offset = (page - 1) * limit
 
+  const userId = parseInt((session.user as { id?: string }).id || '0')
+  if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+
   let sql = 'SELECT * FROM leads WHERE user_id = ?'
-  const params: unknown[] = [(session.user as { id?: string }).id || session.user?.email]
+  const params: unknown[] = [userId]
 
   if (status) { sql += ' AND status = ?'; params.push(status) }
   if (keyword) { sql += ' AND (name LIKE ? OR category LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`) }
@@ -31,7 +34,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const userId = (session.user as { id?: string }).id || session.user?.email
+  const userId = parseInt((session.user as { id?: string }).id || '0')
+  if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
   if (Array.isArray(body)) {
     for (const lead of body) {
@@ -55,7 +59,8 @@ export async function DELETE(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { ids } = await req.json()
-  const userId = (session.user as { id?: string }).id
+  const userId = parseInt((session.user as { id?: string }).id || '0')
+  if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
   if (ids === 'all') {
     await query('DELETE FROM leads WHERE user_id = ?', [userId])
   } else if (Array.isArray(ids)) {
