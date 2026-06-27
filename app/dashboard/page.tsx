@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [form, setForm] = useState({ keyword: '', location: '', maxResults: '20' })
   const [delConfirm, setDelConfirm] = useState(false)
+  const [view, setView] = useState<'scraper'|'leads'>('scraper')
   const [page, setPage] = useState(1)
   const PER_PAGE = 25
 
@@ -118,10 +119,10 @@ export default function DashboardPage() {
         </div>
         <nav className="flex-1 p-3 space-y-1 text-sm">
           <div className="text-[10px] text-[#4B6856] uppercase tracking-wider px-3 py-2">Workspace</div>
-          <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0A1F0C] text-[#A3E635] text-left cursor-pointer">
+          <button onClick={() => setView('scraper')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left cursor-pointer transition-colors ${view === 'scraper' ? 'bg-[#0A1F0C] text-[#A3E635]' : 'text-[#94A3B8] hover:text-white hover:bg-[#0A110B]'}`}>
             <Search size={14} /> Scraper
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[#94A3B8] hover:text-white hover:bg-[#0A110B] text-left cursor-pointer">
+          <button onClick={() => setView('leads')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left cursor-pointer transition-colors ${view === 'leads' ? 'bg-[#0A1F0C] text-[#A3E635]' : 'text-[#94A3B8] hover:text-white hover:bg-[#0A110B]'}`}>
             <Users size={14} /> All Leads
             <span className="ml-auto text-xs bg-[#122016] px-2 py-0.5 rounded-full">{leads.length}</span>
           </button>
@@ -147,7 +148,7 @@ export default function DashboardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
         <header className="flex items-center justify-between px-6 py-3 border-b border-[#122016] shrink-0">
-          <span className="text-white font-semibold font-heading">Scraper</span>
+          <span className="text-white font-semibold font-heading">{view === 'scraper' ? 'Scraper' : 'All Leads'}</span>
           <div className="flex gap-3">
             <button onClick={() => setDelConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[#94A3B8] border border-[#122016] hover:border-red-500/30 hover:text-red-400 transition-all cursor-pointer">
               <Trash2 size={13} /> Clear All
@@ -179,38 +180,37 @@ export default function DashboardPage() {
           </div>
 
           {/* Scrape Form */}
+          {view === 'scraper' && (
           <div className="glass-card p-5">
             <div className="flex items-center gap-2 mb-4">
               <Search size={16} className="text-[#A3E635]" />
               <span className="text-white font-semibold text-sm">Scrape New Leads</span>
               <span className="text-xs text-[#4B6856] ml-1">Google Maps</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-              <div>
+            <div className="flex flex-wrap gap-3 items-end mb-3">
+              <div className="flex-1 min-w-[160px]">
                 <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1">Keyword / Business Type</label>
                 <input value={form.keyword} onChange={e => setForm(f => ({ ...f, keyword: e.target.value }))}
                   placeholder="e.g. Dentists, Salons, Gyms"
                   className="input-dark w-full px-3 py-2 rounded-xl text-sm" />
               </div>
-              <div>
+              <div className="flex-1 min-w-[160px]">
                 <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1">City / Location</label>
                 <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                   placeholder="e.g. Mumbai, Chennai"
                   className="input-dark w-full px-3 py-2 rounded-xl text-sm" />
               </div>
-              <div>
+              <div className="w-36">
                 <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1">Max Results</label>
                 <select value={form.maxResults} onChange={e => setForm(f => ({ ...f, maxResults: e.target.value }))}
                   className="input-dark w-full px-3 py-2 rounded-xl text-sm cursor-pointer">
                   {['10','20','50'].map(n => <option key={n} value={n}>{n} results</option>)}
                 </select>
               </div>
-              <div className="flex items-end">
-                <button onClick={startScrape} disabled={scraping || !form.keyword || !form.location}
-                  className="btn-lime w-full py-2 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-40">
-                  {scraping ? <><RefreshCw size={14} className="animate-spin" /> Scraping...</> : <><Search size={14} /> Start Scraping</>}
-                </button>
-              </div>
+              <button onClick={startScrape} disabled={scraping || !form.keyword || !form.location}
+                className="btn-lime px-6 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-40 whitespace-nowrap">
+                {scraping ? <><RefreshCw size={14} className="animate-spin" /> Scraping...</> : <><Search size={14} /> Start Scraping</>}
+              </button>
             </div>
             {scraping && (
               <div className="w-full h-1.5 bg-[#0A110B] rounded-full overflow-hidden mt-2">
@@ -218,6 +218,7 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Filters */}
           <div className="flex items-center gap-3 flex-wrap">
