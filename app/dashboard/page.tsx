@@ -769,7 +769,7 @@ function DashboardInner() {
                     className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
                     {STATUS_OPTS.map(s => <option key={s} value={s}>{s==='all'?'All Status':s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
                   </select>
-                  {canJsonExport ? (
+                  {canRatingFilter ? (
                     <>
                       <select value={ratingFilter} onChange={e => { setRatingFilter(e.target.value); setPage(1) }}
                         className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
