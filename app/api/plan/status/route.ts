@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { getPlanFeatures } from '@/lib/plan-features'
 
 const LIMITS: Record<string, { leads: number; label: string; monthly: boolean; trialDays?: number }> = {
   free:     { leads: 50,    label: 'Free Trial', monthly: false, trialDays: 3 },
@@ -20,11 +21,12 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
   if (role === 'admin') {
+    const features = await getPlanFeatures('admin')
     return NextResponse.json({
       plan: 'admin', label: 'Admin', isActive: true,
       leadsUsed: 0, leadsLimit: -1, leadsRemaining: -1,
       daysLeft: 999, trialEndsAt: null, planExpiresAt: null,
-      expired: false, limitReached: false, percentUsed: 0,
+      expired: false, limitReached: false, percentUsed: 0, features,
     })
   }
 
@@ -72,9 +74,10 @@ export async function GET() {
   const leadsRemaining = Math.max(0, limits.leads - leadsUsed)
   const percentUsed = Math.min(100, Math.round((leadsUsed / limits.leads) * 100))
 
+  const features = await getPlanFeatures(plan)
   return NextResponse.json({
     plan, label: limits.label, isActive, leadsUsed, leadsLimit: limits.leads, leadsRemaining,
     daysLeft, trialEndsAt, planExpiresAt: user.plan_expires_at || null,
-    expired, limitReached, percentUsed,
+    expired, limitReached, percentUsed, features,
   })
 }

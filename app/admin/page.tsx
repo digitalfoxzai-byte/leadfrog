@@ -64,6 +64,17 @@ export default function AdminPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
+  type PlanFeatMap = Record<string, Record<string, boolean>>
+  const FEAT_LABELS: Record<string, string> = {
+    json_export: 'JSON Export', advanced_filters: 'Advanced Scraper Filters',
+    rating_web_filter: 'Rating & Web Filter (Leads)', bulk_actions: 'Bulk Actions',
+    keyword_history: 'Keyword History', api_keys: 'API Keys',
+  }
+  const FEAT_KEYS = ['json_export', 'advanced_filters', 'rating_web_filter', 'bulk_actions', 'keyword_history', 'api_keys']
+  const FEAT_PLANS = ['free', 'starter', 'pro', 'business']
+  const [planFeats, setPlanFeats] = useState<PlanFeatMap>({})
+  const [featSaving, setFeatSaving] = useState(false)
+
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
     if (status === 'authenticated' && (session?.user as { role?: string })?.role !== 'admin') router.push('/dashboard')
@@ -87,13 +98,29 @@ export default function AdminPage() {
     if (d2.smtp) setSmtp(s => ({ ...s, ...d2.smtp }))
   }, [])
 
+  const loadPlanFeats = useCallback(async () => {
+    const d = await (await fetch('/api/admin/plan-features')).json()
+    if (d && typeof d === 'object') setPlanFeats(d)
+  }, [])
+
+  async function toggleFeat(feature: string, plan: string, enabled: boolean) {
+    setFeatSaving(true)
+    setPlanFeats(prev => ({ ...prev, [plan]: { ...prev[plan], [feature]: enabled } }))
+    await fetch('/api/admin/plan-features', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feature, plan, enabled }),
+    })
+    setFeatSaving(false)
+  }
+
   useEffect(() => {
     if (status !== 'authenticated') return
     loadStats()
     if (tab === 'overview' || tab === 'users') loadUsers()
     if (tab === 'payments') loadPayments()
     if (tab === 'settings') loadSettings()
-  }, [tab, status, loadStats, loadUsers, loadPayments, loadSettings])
+    if (tab === 'plans') loadPlanFeats()
+  }, [tab, status, loadStats, loadUsers, loadPayments, loadSettings, loadPlanFeats])
 
   const greeting = useMemo(() => {
     const h = new Date().getHours()
@@ -533,6 +560,7 @@ export default function AdminPage() {
 
           {/* ── PLANS ── */}
           {tab === 'plans' && (
+            <div className="space-y-6">
             <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#122016]">
                 <span className="text-white font-semibold text-sm">Plan Configuration</span>
@@ -570,6 +598,53 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* ── Feature Permissions Matrix ── */}
+            <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden mt-6">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#122016]">
+                <div>
+                  <span className="text-white font-semibold text-sm">Feature Permissions</span>
+                  <p className="text-[11px] text-[#4B6856] mt-0.5">Toggle which features each plan can access. Changes apply immediately.</p>
+                </div>
+                {featSaving && <span className="text-[10px] text-[#A3E635] animate-pulse">Saving…</span>}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#122016]">
+                      <th className="px-6 py-3 text-left text-[11px] font-semibold text-[#4B6856] uppercase tracking-wider w-64">Feature</th>
+                      {FEAT_PLANS.map(p => (
+                        <th key={p} className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider">
+                          <span className={`px-2 py-1 rounded-md ${PLAN_BADGE[p]}`}>{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FEAT_KEYS.map((feat, fi) => (
+                      <tr key={feat} className={fi % 2 === 0 ? 'bg-[#070D08]' : ''}>
+                        <td className="px-6 py-3.5 text-[#94A3B8] text-[13px]">{FEAT_LABELS[feat]}</td>
+                        {FEAT_PLANS.map(plan => {
+                          const enabled = planFeats[plan]?.[feat] ?? false
+                          return (
+                            <td key={plan} className="px-4 py-3.5 text-center">
+                              <button
+                                onClick={() => toggleFeat(feat, plan, !enabled)}
+                                className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer focus:outline-none ${enabled ? 'bg-[#A3E635]' : 'bg-[#1A2B1C]'}`}
+                                title={enabled ? 'Enabled — click to disable' : 'Disabled — click to enable'}
+                              >
+                                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${enabled ? 'left-5' : 'left-0.5'}`} />
+                              </button>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             </div>
           )}
 

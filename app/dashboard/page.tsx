@@ -67,9 +67,16 @@ function DashboardInner() {
   const [buyingPlan, setBuyingPlan] = useState<string | null>(null)
 
   const plan = planStatus?.plan || 'free'
-  const isStarter = ['starter', 'pro', 'business', 'admin'].includes(plan)
-  const isPro     = ['pro', 'business', 'admin'].includes(plan)
-  const isBusiness = ['business', 'admin'].includes(plan)
+  const feat = (planStatus as {features?: Record<string, boolean>})?.features || {}
+  const isStarter  = !!feat.json_export       // any feature that starter+ has
+  const isPro      = !!feat.bulk_actions
+  const isBusiness = !!feat.api_keys
+  // named feature flags
+  const canJsonExport   = !!feat.json_export
+  const canAdvFilters   = !!feat.advanced_filters
+  const canRatingFilter = !!feat.rating_web_filter
+  const canBulkActions  = !!feat.bulk_actions
+  const canKeyHistory   = !!feat.keyword_history
 
   const [keyHistory, setKeyHistory] = useState<{keyword:string;location:string;results:number}[]>([])
   const [showHistory, setShowHistory] = useState(false)
@@ -256,7 +263,7 @@ function DashboardInner() {
       } : p)
 
       showToast(`${results.length} leads scraped & saved`)
-      if (isPro) {
+      if (canKeyHistory) {
         fetch('/api/keyword-history', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ keyword: form.keyword, location: form.location, results: results.length }) })
           .then(() => fetch('/api/keyword-history').then(r => r.json()).then(h => Array.isArray(h) && setKeyHistory(h)))
       }
@@ -416,7 +423,7 @@ function DashboardInner() {
               <button onClick={() => exportCSV()} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
                 <Download size={14} /> Export CSV
               </button>
-              {isStarter ? (
+              {canJsonExport ? (
                 <button onClick={exportJSON} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[var(--ds-muted)] hover:text-[var(--ds-dim)] hover:bg-white/[0.03] text-left cursor-pointer border-l-2 border-transparent text-[13.5px] font-medium">
                   <FileJson size={14} /> Export JSON
                 </button>
@@ -609,7 +616,7 @@ function DashboardInner() {
                     <div className="relative">
                       <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold flex items-center gap-1.5">
                         Keyword / Business Type
-                        {isPro && keyHistory.length > 0 && (
+                        {canKeyHistory && keyHistory.length > 0 && (
                           <button type="button" onClick={() => setShowHistory(v => !v)}
                             className="text-[#A3E635] hover:text-[#4ADE80] transition-colors cursor-pointer" title="Recent searches">
                             <RefreshCw size={9} />
@@ -619,7 +626,7 @@ function DashboardInner() {
                       <input value={form.keyword} onChange={e => { setForm(f=>({...f,keyword:e.target.value})); setShowHistory(false) }}
                         placeholder="e.g. Dentists, Restaurants, Gyms"
                         className="input-dark w-full px-3 py-2 rounded-lg text-sm" />
-                      {isPro && showHistory && keyHistory.length > 0 && (
+                      {canKeyHistory && showHistory && keyHistory.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--ds-bg1)] border border-[var(--ds-bd1)] rounded-xl shadow-2xl z-50 overflow-hidden">
                           <div className="px-3 py-1.5 text-[9px] text-[var(--ds-muted)] uppercase tracking-widest border-b border-[var(--ds-bd1)] font-bold">Recent Searches</div>
                           {keyHistory.slice(0, 8).map((h, i) => (
@@ -654,7 +661,7 @@ function DashboardInner() {
                     </div>
                   </div>
                   <div className="relative mb-4">
-                    {!isStarter && (
+                    {!canAdvFilters && (
                       <div className="absolute inset-0 rounded-xl z-10 flex items-center justify-center cursor-pointer"
                         style={{background:'rgba(7,13,8,0.75)',backdropFilter:'blur(3px)'}}
                         onClick={() => router.push('/dashboard/billing')}>
@@ -668,7 +675,7 @@ function DashboardInner() {
                         </div>
                       </div>
                     )}
-                    <div className={`grid grid-cols-4 gap-3 ${!isStarter ? 'opacity-30 pointer-events-none select-none' : ''}`}>
+                    <div className={`grid grid-cols-4 gap-3 ${!canAdvFilters ? 'opacity-30 pointer-events-none select-none' : ''}`}>
                       <div>
                         <label className="text-[10px] text-[var(--ds-muted)] uppercase tracking-widest block mb-1.5 font-semibold">Min Rating</label>
                         <select value={form.minRating} onChange={e => setForm(f=>({...f,minRating:e.target.value}))}
@@ -762,7 +769,7 @@ function DashboardInner() {
                     className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
                     {STATUS_OPTS.map(s => <option key={s} value={s}>{s==='all'?'All Status':s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
                   </select>
-                  {isStarter ? (
+                  {canJsonExport ? (
                     <>
                       <select value={ratingFilter} onChange={e => { setRatingFilter(e.target.value); setPage(1) }}
                         className="input-dark px-3 py-2 rounded-lg text-sm cursor-pointer">
@@ -788,7 +795,7 @@ function DashboardInner() {
                 </div>
 
                 {/* Bulk bar - Pro+ only */}
-                {isPro && selected.size > 0 && (
+                {canBulkActions && selected.size > 0 && (
                   <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm"
                     style={{background:'linear-gradient(135deg,rgba(163,230,53,0.07),rgba(74,222,128,0.04))',borderColor:'rgba(163,230,53,0.2)'}}>
                     <span className="text-[#A3E635] font-bold text-xs">{selected.size} selected</span>
@@ -801,7 +808,7 @@ function DashboardInner() {
                     <button onClick={() => setSelected(new Set())} className="ml-auto text-[var(--ds-muted)] hover:text-[var(--ds-text)] cursor-pointer"><X size={14} /></button>
                   </div>
                 )}
-                {!isPro && (
+                {!canBulkActions && (
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => router.push('/dashboard/billing')}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[var(--ds-bd1)] text-[var(--ds-muted)] opacity-60 hover:opacity-90 cursor-pointer transition-opacity">
@@ -817,7 +824,7 @@ function DashboardInner() {
                     <table className="w-full text-sm" style={{minWidth:'960px'}}>
                       <thead>
                         <tr className="bg-[var(--ds-bg1)] border-b border-[var(--ds-bd1)]">
-                          {isPro && <th className="p-3 w-9"><input type="checkbox" onChange={selectAll} checked={selected.size===filtered.length && filtered.length>0} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></th>}
+                          {canBulkActions && <th className="p-3 w-9"><input type="checkbox" onChange={selectAll} checked={selected.size===filtered.length && filtered.length>0} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></th>}
                           {['Business Name','Phone','Address','Rating','Reviews','Website','Category','Status','Actions'].map(h => (
                             <th key={h} className="px-3 py-3 text-left text-[10.5px] text-[var(--ds-muted)] uppercase tracking-[1.5px] font-bold whitespace-nowrap">{h}</th>
                           ))}
@@ -825,12 +832,12 @@ function DashboardInner() {
                       </thead>
                       <tbody>
                         {paged.length === 0 ? (
-                          <tr><td colSpan={isPro ? 10 : 9} className="py-12 text-center text-xs text-[var(--ds-muted)]">No leads match your filters</td></tr>
+                          <tr><td colSpan={canBulkActions ? 10 : 9} className="py-12 text-center text-xs text-[var(--ds-muted)]">No leads match your filters</td></tr>
                         ) : paged.map((lead, i) => {
                           const realIdx = (page - 1) * PER_PAGE + i
                           return (
                             <tr key={realIdx} className={`border-b border-[var(--ds-bg3)]/60 transition-colors hover:bg-[#A3E635]/[0.02] ${selected.has(realIdx) ? 'bg-[#A3E635]/[0.04]' : ''}`}>
-                              {isPro && <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></td>}
+                              {canBulkActions && <td className="p-3"><input type="checkbox" checked={selected.has(realIdx)} onChange={() => toggleSelect(realIdx)} className="cursor-pointer accent-[#A3E635] w-[15px] h-[15px]" /></td>}
                               <td className="px-3 py-3 max-w-[170px]">
                                 <div className="font-semibold text-[var(--ds-text)] truncate" title={lead.name}>{lead.name}</div>
                               </td>

@@ -40,7 +40,7 @@ export default function SettingsPage() {
   const [creatingKey, setCreatingKey] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
 
-  const isBusiness = ['business', 'admin'].includes(usage?.plan || '')
+  const isBusiness = !!(usage as {features?: Record<string, boolean>})?.features?.api_keys
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })

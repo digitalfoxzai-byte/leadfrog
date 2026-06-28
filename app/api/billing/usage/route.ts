@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { getPlanFeatures } from '@/lib/plan-features'
 
 const LIMITS: Record<string, { leads: number; label: string; monthly: boolean; trialDays?: number }> = {
   free:     { leads: 50,    label: 'Free Trial', monthly: false, trialDays: 3 },
@@ -22,11 +23,12 @@ export async function GET() {
   const role   = (session.user as { role?: string }).role
 
   if (role === 'admin') {
+    const features = await getPlanFeatures('admin')
     return NextResponse.json({
       plan: 'admin', label: 'Admin', status: 'Active',
       isActive: true, planStarted: '—', nextBilling: '—',
       leadsUsed: 0, leadsLimit: -1, leadsRemaining: -1,
-      percentUsed: 0, daysLeft: 999, trialEndsAt: null, planExpiresAt: null,
+      percentUsed: 0, daysLeft: 999, trialEndsAt: null, planExpiresAt: null, features,
     })
   }
 
@@ -88,11 +90,12 @@ export async function GET() {
   let status = isActive ? 'Active' : (expired ? 'Expired' : 'Limit Reached')
   if (isFree && isActive) status = 'Trial Active'
 
+  const features = await getPlanFeatures(plan)
   return NextResponse.json({
     plan, label: limits.label, status, isActive,
     planStarted, nextBilling,
     leadsUsed, leadsLimit: limits.leads, leadsRemaining, percentUsed,
     daysLeft, trialEndsAt, planExpiresAt, expired, limitReached,
-    name: user.name,
+    name: user.name, features,
   })
 }
