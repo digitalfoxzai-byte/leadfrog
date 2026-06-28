@@ -63,6 +63,7 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [signOutConfirm, setSignOutConfirm] = useState(false)
 
   type PlanFeatMap = Record<string, Record<string, boolean>>
   const FEAT_LABELS: Record<string, string> = {
@@ -212,7 +213,7 @@ export default function AdminPage() {
 
         {/* Logout */}
         <div className="px-3 pb-5 pt-2 border-t border-[#0E1A0F]">
-          <button onClick={() => signOut({ callbackUrl: '/login' })}
+          <button onClick={() => setSignOutConfirm(true)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[#5A7A60] hover:text-red-400 hover:bg-[#0A150B] cursor-pointer transition-all text-left">
             <LogOut size={15} strokeWidth={1.8} /> Logout
           </button>
@@ -936,6 +937,26 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Sign-out confirmation modal */}
+      {signOutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0A110B] border border-[#1A321E] rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-white font-bold text-base mb-1">Sign out?</h3>
+            <p className="text-[#4B6856] text-sm mb-5">You will be returned to the login page.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setSignOutConfirm(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-[#1A321E] text-[#94A3B8] text-sm font-semibold hover:bg-white/5 cursor-pointer transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => signOut({ callbackUrl: '/login' })}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-semibold hover:bg-red-500/20 cursor-pointer transition-colors">
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
