@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const code = await createOtp(email, 'signup')
     const sent = await sendMail(
       email,
-      `LeadFrog: Your verification code is ${code}`,
+      `Verify your LeadFrog account`,
       emailTemplate('Email Verification', `
         <p style="color:#0F172A;font-size:15px;">You requested a verification code to create your LeadFrog account.</p>
         <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">

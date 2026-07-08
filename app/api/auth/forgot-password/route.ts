@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       const code = await createOtp(email, 'reset')
       await sendMail(
         email,
-        `LeadFrog: Your password reset code is ${code}`,
+        `Reset your LeadFrog password`,
         emailTemplate('Password Reset', `
           <p style="color:#0F172A;font-size:15px;">Hi ${rows[0].name},</p>
           <p style="color:#475569;">We received a request to reset your LeadFrog account password.</p>

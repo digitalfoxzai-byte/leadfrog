@@ -62,7 +62,7 @@ export async function sendAdminMail(subject: string, html: string): Promise<bool
 type SmtpConfig = NonNullable<Awaited<ReturnType<typeof getSmtpSettings>>>
 
 async function sendMailWithConfig(
-  cfg: SmtpConfig, to: string, subject: string, html: string, attachments?: MailAttachment[]
+  cfg: SmtpConfig, to: string, subject: string, html: string, attachments?: MailAttachment[], transactional = true
 ): Promise<boolean> {
   try {
     const text = html
@@ -75,17 +75,22 @@ async function sendMailWithConfig(
       host: cfg.host, port: cfg.port, secure: cfg.secure,
       auth: { user: cfg.user, pass: cfg.pass },
     })
+
+    // Transactional emails (OTP, password reset, receipts) must NOT have bulk headers
+    const headers: Record<string, string> = {
+      'X-Entity-Ref-ID': `lf-${Date.now()}`,
+    }
+    if (!transactional) {
+      headers['Precedence'] = 'bulk'
+      headers['List-Unsubscribe'] = `<mailto:${cfg.fromEmail}?subject=unsubscribe>`
+    }
+
     await transport.sendMail({
       from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
       to, subject, html, text,
       replyTo: cfg.fromEmail,
       attachments,
-      headers: {
-        'X-Mailer': 'LeadFrog Mailer',
-        'X-Entity-Ref-ID': `leadfrog-${Date.now()}`,
-        'List-Unsubscribe': `<mailto:${cfg.fromEmail}?subject=unsubscribe>`,
-        'Precedence': 'bulk',
-      },
+      headers,
     })
     return true
   } catch (err) {

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const code = await createOtp(newEmail, 'email_change')
   const sent = await sendMail(
     newEmail,
-    `LeadFrog: Verify your new email — ${code}`,
+    `Verify your new email address`,
     emailTemplate('Email Change Verification', `
       <p style="color:#0F172A;font-size:15px;">You requested to change your LeadFrog account email to this address.</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
