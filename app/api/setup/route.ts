@@ -6,8 +6,10 @@ export async function POST(req: NextRequest) {
   try {
     const { name, email, password, secret } = await req.json()
 
-    // Basic protection — require setup secret
-    if (secret !== (process.env.SETUP_SECRET || 'leadfrog-setup-2025')) {
+    // Basic protection — require setup secret. Fail closed if it isn't configured
+    // so no weak default can be used to create the first admin.
+    const setupSecret = process.env.SETUP_SECRET
+    if (!setupSecret || secret !== setupSecret) {
       return NextResponse.json({ error: 'Invalid setup secret' }, { status: 403 })
     }
 

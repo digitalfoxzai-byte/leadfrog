@@ -27,6 +27,16 @@ export async function getSmtpSettings() {
   return { host, port, secure, user, pass, fromName, fromEmail, adminEmail }
 }
 
+// Escape user-supplied text before placing it in email HTML.
+export function escHtml(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function emailTemplate(title: string, bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html lang="en">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { createOtp } from '@/lib/otp'
-import { sendMail, emailTemplate } from '@/lib/mailer'
+import { sendMail, emailTemplate, escHtml } from '@/lib/mailer'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
         email,
         `Reset your LeadFrog password`,
         emailTemplate('Password Reset', `
-          <p style="color:#0F172A;font-size:15px;">Hi ${rows[0].name},</p>
+          <p style="color:#0F172A;font-size:15px;">Hi ${escHtml(rows[0].name)},</p>
           <p style="color:#475569;">We received a request to reset your LeadFrog account password.</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
             <tr><td align="center">

@@ -3,6 +3,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
 
+// Escape text before interpolating into the invoice HTML. Prevents stored XSS
+// (user name/email, company settings) when the page is viewed by the admin or
+// rendered to PDF by headless Chrome.
+function esc(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 async function requireAdmin() {
   const session = await getServerSession(authOptions)
   if (!session || (session.user as { role?: string }).role !== 'admin') return null
@@ -46,7 +58,15 @@ function invoiceHtml(
   const num   = invoiceNumber(inv.id, inv.created_at)
   const amt   = Math.round(inv.amount / 100)
   const fmtAmt = '₹' + amt.toLocaleString('en-IN')
-  const plan  = inv.plan.charAt(0).toUpperCase() + inv.plan.slice(1)
+  const plan  = esc(inv.plan.charAt(0).toUpperCase() + inv.plan.slice(1))
+
+  // User- and admin-supplied fields are escaped before entering the HTML —
+  // this page is served to the admin browser AND rendered by headless Chrome
+  const userName  = esc(inv.user_name)
+  const userEmail = esc(inv.user_email)
+  const coName    = esc(company.name)
+  const coEmail   = esc(company.email)
+  const coPhone   = esc(company.phone)
   const isPaid = inv.status === 'active' || inv.status === 'paid'
   const statusLabel = isPaid ? 'PAID' : inv.status === 'pending' ? 'PENDING' : inv.status.toUpperCase()
   const statusColor = isPaid ? '#16A34A' : inv.status === 'pending' ? '#D97706' : '#DC2626'
@@ -60,7 +80,8 @@ function invoiceHtml(
     ? `<div class="item-sub">Subscription · ${periodFrom} – ${periodTo}</div>`
     : `<div class="item-sub">Monthly subscription</div>`
 
-  const addrLines = company.address.replace(/\n/g, '<br>')
+  // Escape first, then re-introduce line breaks so addresses can't inject markup
+  const addrLines = esc(company.address).replace(/\r?\n/g, '<br>')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -389,14 +410,14 @@ function invoiceHtml(
     <!-- HEADER -->
     <div class="header">
       <div class="header-logo">
-        <img src="${logoSrc}" alt="${company.name}" onerror="this.style.display='none'" />
+        <img src="${logoSrc}" alt="${coName}" onerror="this.style.display='none'" />
       </div>
       <div class="header-title">INVOICE</div>
       <div class="header-right">
-        <div class="co-name">${company.name}</div>
+        <div class="co-name">${coName}</div>
         <div class="co-detail">
-          ${company.email ? company.email + '<br>' : ''}
-          ${company.phone ? company.phone + '<br>' : ''}
+          ${coEmail ? coEmail + '<br>' : ''}
+          ${coPhone ? coPhone + '<br>' : ''}
           ${addrLines}
         </div>
         <div class="inv-label">INVOICE NO.</div>
@@ -419,8 +440,8 @@ function invoiceHtml(
     <div class="details-row">
       <div class="details-col">
         <div class="details-label">Billed To</div>
-        <div class="billed-name">${inv.user_name}</div>
-        <div class="billed-line">${inv.user_email}</div>
+        <div class="billed-name">${userName}</div>
+        <div class="billed-line">${userEmail}</div>
         <div class="billed-plan">${plan} Plan · Monthly</div>
       </div>
       <div class="details-col">
@@ -464,11 +485,11 @@ function invoiceHtml(
     <div class="footer">
       <div class="footer-left">
         <div class="thank">Thank you for your business!</div>
-        <div class="contact">Queries? Contact <a href="mailto:${company.email}">${company.email || 'support@leadfrog.in'}</a></div>
+        <div class="contact">Queries? Contact <a href="mailto:${coEmail}">${coEmail || 'support@leadfrog.in'}</a></div>
       </div>
       <div class="footer-right">
-        <img src="${logoSrc}" alt="${company.name}" onerror="this.style.display='none'" />
-        <span class="co">${company.name}</span>
+        <img src="${logoSrc}" alt="${coName}" onerror="this.style.display='none'" />
+        <span class="co">${coName}</span>
       </div>
     </div>
 
@@ -590,8 +611,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const bodyHtml = `
-    <p>Hi <strong>${inv.user_name}</strong>,</p>
-    <p style="margin-top:12px;">Please find your invoice <strong>${num}</strong> for your LeadFrog ${plan} Plan subscription.</p>
+    <p>Hi <strong>${esc(inv.user_name)}</strong>,</p>
+    <p style="margin-top:12px;">Please find your invoice <strong>${num}</strong> for your LeadFrog ${esc(plan)} Plan subscription.</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;border-collapse:collapse;">
       <tr style="background:#F8FAFC;">
         <td style="padding:10px 16px;font-size:11px;font-weight:700;color:#64748B;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #E2E8F0;">Invoice</td>
@@ -601,13 +622,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       </tr>
       <tr>
         <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#0F172A;">${num}</td>
-        <td style="padding:14px 16px;font-size:14px;color:#0F172A;">${plan}</td>
+        <td style="padding:14px 16px;font-size:14px;color:#0F172A;">${esc(plan)}</td>
         <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#0F172A;">₹${amt.toLocaleString('en-IN')}</td>
         <td style="padding:14px 16px;font-size:14px;font-weight:600;color:${inv.status === 'active' ? '#16A34A' : '#D97706'};">${inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}</td>
       </tr>
     </table>
     ${pdfBuffer ? `<p style="color:#64748B;font-size:13px;">Your invoice PDF <strong>${num}.pdf</strong> is attached to this email.</p>` : ''}
-    <p style="color:#64748B;font-size:13px;">For any billing queries, contact us at <a href="mailto:${company.email}" style="color:#16A34A;">${company.email || 'support@leadfrog.in'}</a></p>
+    <p style="color:#64748B;font-size:13px;">For any billing queries, contact us at <a href="mailto:${esc(company.email)}" style="color:#16A34A;">${esc(company.email) || 'support@leadfrog.in'}</a></p>
   `
 
   const { emailTemplate, sendMail } = await import('@/lib/mailer')

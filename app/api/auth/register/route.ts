@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { query } from '@/lib/db'
 import { verifyOtp } from '@/lib/otp'
-import { sendMail, sendAdminMail, emailTemplate, getSmtpSettings } from '@/lib/mailer'
+import { sendMail, sendAdminMail, emailTemplate, getSmtpSettings, escHtml } from '@/lib/mailer'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     sendMail(
       email,
       'Welcome to LeadFrog — Your account is ready',
-      emailTemplate(`Welcome, ${name}!`, `
+      emailTemplate(`Welcome, ${escHtml(name)}!`, `
         <p>Your LeadFrog account is ready. Start scraping leads right away:</p>
         <ol style="color:#475569;font-size:14px;line-height:2;">
           <li>Log in to your <a href="https://leadfrog.digitalfoxz.com/dashboard" style="color:#16A34A;font-weight:600;">dashboard</a></li>
@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
 
     // Admin notification (fire-and-forget)
     sendAdminMail(
-      `New signup: ${name}`,
+      `New signup: ${escHtml(name)}`,
       emailTemplate('New user registered', `
-        <p><b>Name:</b> ${name}</p>
-        <p><b>Email:</b> ${email}</p>
+        <p><b>Name:</b> ${escHtml(name)}</p>
+        <p><b>Email:</b> ${escHtml(email)}</p>
         <p><b>Plan:</b> Free Trial</p>
         <p><b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</p>
       `)
