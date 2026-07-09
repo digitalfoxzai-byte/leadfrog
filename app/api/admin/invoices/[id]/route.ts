@@ -37,7 +37,8 @@ function invoiceHtml(
     razorpay_payment_id: string | null; razorpay_order_id: string | null
     user_name: string; user_email: string
   },
-  company: { name: string; email: string; phone: string; address: string }
+  company: { name: string; email: string; phone: string; address: string },
+  baseHref?: string
 ) {
   const num   = invoiceNumber(inv.id, inv.created_at)
   const amt   = Math.round(inv.amount / 100)
@@ -62,6 +63,7 @@ function invoiceHtml(
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  ${baseHref ? `<base href="${baseHref}">` : ''}
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${num} — Invoice</title>
   <style>
@@ -517,6 +519,40 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const amt = Math.round(inv.amount / 100)
   const plan = inv.plan.charAt(0).toUpperCase() + inv.plan.slice(1)
 
+  // Render the invoice to PDF with headless Chrome so it can be attached
+  let pdfBuffer: Buffer | null = null
+  try {
+    const fs = await import('fs')
+    const execPath = ['/usr/bin/google-chrome-stable', '/usr/bin/chromium-browser', '/usr/bin/chromium']
+      .find(p => fs.existsSync(p))
+    if (execPath) {
+      const proto = req.headers.get('x-forwarded-proto') || 'https'
+      const host = req.headers.get('host') || 'localhost:3000'
+      const html = invoiceHtml(inv, company, `${proto}://${host}/`)
+      const puppeteer = (await import('puppeteer-core')).default
+      const browser = await puppeteer.launch({
+        executablePath: execPath,
+        args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      })
+      try {
+        const page = await browser.newPage()
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 })
+        await page.evaluateHandle('document.fonts.ready')
+        pdfBuffer = Buffer.from(await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '10mm', bottom: '10mm', left: '0', right: '0' },
+        }))
+      } finally {
+        await browser.close()
+      }
+    } else {
+      console.warn('[invoice pdf] no chrome/chromium binary found — sending without attachment')
+    }
+  } catch (err) {
+    console.error('[invoice pdf] render failed — sending without attachment:', err)
+  }
+
   const bodyHtml = `
     <p>Hi <strong>${inv.user_name}</strong>,</p>
     <p style="margin-top:12px;">Please find your invoice <strong>${num}</strong> for your LeadFrog ${plan} Plan subscription.</p>
@@ -534,11 +570,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         <td style="padding:14px 16px;font-size:14px;font-weight:600;color:${inv.status === 'active' ? '#16A34A' : '#D97706'};">${inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}</td>
       </tr>
     </table>
+    ${pdfBuffer ? `<p style="color:#64748B;font-size:13px;">Your invoice PDF <strong>${num}.pdf</strong> is attached to this email.</p>` : ''}
     <p style="color:#64748B;font-size:13px;">For any billing queries, contact us at <a href="mailto:${company.email}" style="color:#16A34A;">${company.email || 'support@leadfrog.in'}</a></p>
   `
 
   const { emailTemplate, sendMail } = await import('@/lib/mailer')
-  const sent = await sendMail(inv.user_email, `Your Invoice — ${num}`, emailTemplate(`Invoice ${num}`, bodyHtml))
+  const attachments = pdfBuffer
+    ? [{ filename: `${num}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+    : undefined
+  const sent = await sendMail(inv.user_email, `Your Invoice — ${num}`, emailTemplate(`Invoice ${num}`, bodyHtml), attachments)
 
   if (!sent) return NextResponse.json({ error: 'Failed to send — check SMTP settings' }, { status: 500 })
   return NextResponse.json({ success: true })
