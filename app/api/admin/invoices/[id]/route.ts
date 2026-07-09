@@ -48,10 +48,13 @@ function invoiceHtml(
   const statusColor = isPaid ? '#16A34A' : inv.status === 'pending' ? '#D97706' : '#DC2626'
 
   const issuedOn = fmt(inv.starts_at || inv.created_at)
-  const dueDate  = fmt(inv.expires_at)
+  const dueDate  = inv.expires_at ? fmt(inv.expires_at) : 'Due on receipt'
 
-  const periodFrom = inv.starts_at ? new Date(inv.starts_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
-  const periodTo   = inv.expires_at ? new Date(inv.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  const periodFrom = inv.starts_at ? new Date(inv.starts_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+  const periodTo   = inv.expires_at ? new Date(inv.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+  const periodLine = periodFrom && periodTo
+    ? `<div class="item-sub">Subscription · ${periodFrom} – ${periodTo}</div>`
+    : `<div class="item-sub">Monthly subscription</div>`
 
   const addrLines = company.address.replace(/,\s*/g, ',<br>').replace(/\n/g, '<br>')
 
@@ -64,25 +67,23 @@ function invoiceHtml(
   <style>
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-Regular.woff2') format('woff2'),
-           url('/fonts/BaiJamjuree-Regular.ttf') format('truetype');
-      font-weight: 400; font-style: normal;
+      src: url('/fonts/BaiJamjuree-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
     }
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-Medium.woff2') format('woff2');
-      font-weight: 500; font-style: normal;
+      src: url('/fonts/BaiJamjuree-Medium.ttf') format('truetype');
+      font-weight: 500; font-style: normal; font-display: block;
     }
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-SemiBold.woff2') format('woff2');
-      font-weight: 600; font-style: normal;
+      src: url('/fonts/BaiJamjuree-SemiBold.ttf') format('truetype');
+      font-weight: 600; font-style: normal; font-display: block;
     }
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-Bold.woff2') format('woff2'),
-           url('/fonts/BaiJamjuree-Bold.ttf') format('truetype');
-      font-weight: 700; font-style: normal;
+      src: url('/fonts/BaiJamjuree-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -134,10 +135,12 @@ function invoiceHtml(
       flex: 1;
       text-align: center;
       color: #fff;
-      font-size: 38px;
+      font-size: 32px;
       font-weight: 700;
       letter-spacing: 12px;
       text-transform: uppercase;
+      white-space: nowrap;
+      margin-right: -12px;
     }
     .header-right {
       text-align: right;
@@ -394,7 +397,7 @@ function invoiceHtml(
         <img src="/logo.png" alt="${company.name}" onerror="this.style.display='none'" />
         <div class="header-logo-text">${company.name.toUpperCase()}</div>
       </div>
-      <div class="header-title">I N V O I C E</div>
+      <div class="header-title">INVOICE</div>
       <div class="header-right">
         <div class="co-name">${company.name}</div>
         <div class="co-detail">
@@ -449,7 +452,7 @@ function invoiceHtml(
           <tr>
             <td>
               <div>LeadFrog ${plan} Plan — Monthly Subscription</div>
-              <div class="item-sub">Subscription · ${periodFrom} – ${periodTo}</div>
+              ${periodLine}
             </td>
             <td>${fmtAmt}</td>
           </tr>

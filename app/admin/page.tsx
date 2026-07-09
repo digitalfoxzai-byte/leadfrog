@@ -16,7 +16,7 @@ interface DbUser { id: number; name: string; email: string; role: string; plan: 
 interface Invoice { id: number; plan: string; amount: number; status: string; created_at: string; user_name: string; user_email: string }
 interface Upcoming { id: number; name: string; email: string; plan: string; plan_expires_at: string; days_left: number }
 interface PayData { invoices: Invoice[]; upcoming: Upcoming[]; stats: { revenue: number; pending: number; upcomingCount: number; overdue: number } }
-interface AdminSettings { razorpay_key_id: string; razorpay_key_secret: string; razorpay_mode: string; starter_price: string; pro_price: string; business_price: string; starter_leads: string; pro_leads: string; business_leads: string }
+interface AdminSettings { razorpay_key_id: string; razorpay_key_secret: string; razorpay_mode: string; starter_price: string; pro_price: string; business_price: string; starter_leads: string; pro_leads: string; business_leads: string; company_name: string; company_phone: string; company_address: string; support_email: string }
 type InvoiceAction = { type: 'generating' | 'sending'; id: number } | null
 
 type Tab = 'overview' | 'users' | 'plans' | 'payments' | 'settings'
@@ -54,7 +54,7 @@ export default function AdminPage() {
   const [payData, setPayData] = useState<PayData | null>(null)
   const [ovSearch, setOvSearch] = useState('')
   const [ovFilter, setOvFilter] = useState<'all'|'active'|'banned'|'free'>('all')
-  const [settings, setSettings] = useState<AdminSettings>({ razorpay_key_id: '', razorpay_key_secret: '', razorpay_mode: 'test', starter_price: '499', pro_price: '999', business_price: '2499', starter_leads: '500', pro_leads: '2000', business_leads: '10000' })
+  const [settings, setSettings] = useState<AdminSettings>({ razorpay_key_id: '', razorpay_key_secret: '', razorpay_mode: 'test', starter_price: '499', pro_price: '999', business_price: '2499', starter_leads: '500', pro_leads: '2000', business_leads: '10000', company_name: 'LeadFrog', company_phone: '', company_address: '', support_email: '' })
   const [smtp, setSmtp] = useState<Record<string, string>>({ smtp_host: 'smtp.gmail.com', smtp_port: '465', smtp_user: '', smtp_pass: '', smtp_from_name: 'LeadFrog', smtp_admin_email: '' })
   const [account, setAccount] = useState({ currentPassword: '', newEmail: '', newPassword: '' })
   const [paySubTab, setPaySubTab] = useState<'upcoming'|'invoices'>('upcoming')
@@ -791,7 +791,7 @@ export default function AdminPage() {
                         {(payData.invoices as Invoice[]).map((inv, i) => (
                           <tr key={inv.id} className={`hover:bg-[#0D160E]/60 transition-colors ${i < (payData.invoices as Invoice[]).length - 1 ? 'border-b border-[#0D160E]' : ''}`}>
                             <td className="px-6 py-4">
-                              <div className="text-[#A3E635] font-mono text-xs font-bold">{invNum(inv.id, inv.created_at)}</div>
+                              <div className="text-[#A3E635] text-xs font-bold tracking-wide">{invNum(inv.id, inv.created_at)}</div>
                               <div className="text-[10px] text-[#4B6856] mt-0.5">{new Date(inv.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                             </td>
                             <td className="px-6 py-4">
@@ -853,6 +853,50 @@ export default function AdminPage() {
           {/* ── SETTINGS ── */}
           {tab === 'settings' && (
             <div className="space-y-5 max-w-3xl">
+
+              {/* Company Info */}
+              <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-[#122016]">
+                  <Globe size={15} className="text-[#A3E635]" />
+                  <div>
+                    <div className="text-white font-semibold text-sm">Company Info</div>
+                    <div className="text-[#4B6856] text-xs">Used on invoices sent to clients</div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1.5">Company Name</label>
+                      <input value={settings.company_name} onChange={e => setSettings(s => ({ ...s, company_name: e.target.value }))}
+                        placeholder="e.g. Digital Foxz"
+                        className="w-full px-3 py-2 rounded-lg bg-[#0A110B] border border-[#122016] text-white text-sm focus:outline-none focus:border-[#A3E635]/40" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1.5">Support Email</label>
+                      <input value={settings.support_email} onChange={e => setSettings(s => ({ ...s, support_email: e.target.value }))}
+                        placeholder="support@yourcompany.com"
+                        className="w-full px-3 py-2 rounded-lg bg-[#0A110B] border border-[#122016] text-white text-sm focus:outline-none focus:border-[#A3E635]/40" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1.5">Phone</label>
+                    <input value={settings.company_phone} onChange={e => setSettings(s => ({ ...s, company_phone: e.target.value }))}
+                      placeholder="+91 9876543210"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0A110B] border border-[#122016] text-white text-sm focus:outline-none focus:border-[#A3E635]/40" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#4B6856] uppercase tracking-wider block mb-1.5">Address</label>
+                    <textarea value={settings.company_address} onChange={e => setSettings(s => ({ ...s, company_address: e.target.value }))}
+                      placeholder="2nd Floor, SN Plaza, Thycaud, Trivandrum"
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg bg-[#0A110B] border border-[#122016] text-white text-sm focus:outline-none focus:border-[#A3E635]/40 resize-none" />
+                  </div>
+                  <button onClick={saveSettings} disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#A3E635] text-black text-sm font-semibold hover:bg-[#B5F045] transition-all cursor-pointer disabled:opacity-50">
+                    <Save size={14} /> {saving ? 'Saving...' : 'Save Company Info'}
+                  </button>
+                </div>
+              </div>
 
               {/* Razorpay */}
               <div className="rounded-xl bg-[#0A110B] border border-[#122016] overflow-hidden">
