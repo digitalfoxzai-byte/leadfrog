@@ -538,7 +538,7 @@ export default function AdminPage() {
                           <td className="px-4 py-4 text-white font-medium whitespace-nowrap">{u.name}</td>
                           <td className="px-4 py-4 text-[#5A7A60] text-xs max-w-[190px] truncate">{u.email}</td>
                           <td className="px-4 py-4">
-                            <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${PLAN_BADGE[u.plan] || PLAN_BADGE.free}`}>
+                            <span className={`inline-flex items-center justify-center min-w-[72px] px-2.5 py-1 rounded-md text-xs font-medium leading-none ${PLAN_BADGE[u.plan] || PLAN_BADGE.free}`}>
                               {u.plan.charAt(0).toUpperCase() + u.plan.slice(1)}
                             </span>
                           </td>
