@@ -536,7 +536,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       })
       try {
         const page = await browser.newPage()
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 })
+        await page.setContent(html, { waitUntil: 'load', timeout: 30000 })
+        await page.waitForNetworkIdle({ idleTime: 500, timeout: 15000 }).catch(() => {})
         await page.evaluateHandle('document.fonts.ready')
         pdfBuffer = Buffer.from(await page.pdf({
           format: 'A4',
