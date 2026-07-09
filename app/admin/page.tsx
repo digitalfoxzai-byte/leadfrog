@@ -513,34 +513,35 @@ export default function AdminPage() {
               {loading
                 ? <div className="p-12 text-center text-[#4B6856] text-sm">Loading...</div>
                 : (
+                  <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[#0D160E]">
                         {['Name', 'Email', 'Plan', 'Status', 'Leads', 'Joined', 'Actions'].map(h => (
-                          <th key={h} className="px-6 py-3 text-left text-[11px] text-[#4B6856] uppercase tracking-wider font-medium">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left text-[11px] text-[#4B6856] uppercase tracking-wider font-medium">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {users.map((u, i) => (
                         <tr key={u.id} className={`border-b border-[#0D160E] hover:bg-[#0D160E]/60 transition-colors ${i % 2 === 0 ? '' : 'bg-[#070D08]/40'}`}>
-                          <td className="px-6 py-4 text-white font-medium">{u.name}</td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{u.email}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4 text-white font-medium whitespace-nowrap">{u.name}</td>
+                          <td className="px-4 py-4 text-[#5A7A60] text-xs max-w-[190px] truncate">{u.email}</td>
+                          <td className="px-4 py-4">
                             <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${PLAN_BADGE[u.plan] || PLAN_BADGE.free}`}>
                               {u.plan.charAt(0).toUpperCase() + u.plan.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <span className={`flex items-center gap-1.5 text-xs font-medium ${STATUS_BADGE[u.role] || STATUS_BADGE.user}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${u.role === 'banned' ? 'bg-red-400' : u.role === 'admin' ? 'bg-amber-400' : 'bg-[#A3E635]'}`} />
                               {displayStatus(u.role)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{u.lead_count}</td>
-                          <td className="px-6 py-4 text-[#5A7A60] text-xs">{new Date(u.created_at).toLocaleDateString('en-GB')}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
+                          <td className="px-4 py-4 text-[#5A7A60] text-xs">{u.lead_count}</td>
+                          <td className="px-4 py-4 text-[#5A7A60] text-xs whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('en-GB')}</td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-1.5 whitespace-nowrap">
                               {/* Plan selector */}
                               <div className="relative">
                                 <select
@@ -557,12 +558,12 @@ export default function AdminPage() {
                               {/* Ban / Unban */}
                               {u.role === 'banned'
                                 ? <button onClick={() => userAction(u.id, 'unban')}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1A2E10] text-[#A3E635] text-xs hover:bg-[#A3E635]/20 cursor-pointer transition-all">
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1A2E10] text-[#A3E635] text-xs hover:bg-[#A3E635]/20 cursor-pointer transition-all">
                                     <ShieldCheck size={12} /> Unban
                                   </button>
                                 : u.role !== 'admin' && (
                                   <button onClick={() => userAction(u.id, 'ban')}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs hover:bg-amber-500/20 cursor-pointer transition-all">
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs hover:bg-amber-500/20 cursor-pointer transition-all">
                                     <ShieldOff size={12} /> Ban
                                   </button>
                                 )
@@ -570,7 +571,7 @@ export default function AdminPage() {
                               {/* Delete */}
                               {u.role !== 'admin' && (
                                 <button onClick={() => deleteUser(u.id)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20 cursor-pointer transition-all">
+                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20 cursor-pointer transition-all">
                                   <Trash2 size={12} /> Delete
                                 </button>
                               )}
@@ -583,6 +584,7 @@ export default function AdminPage() {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 )}
             </div>
           )}
