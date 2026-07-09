@@ -56,7 +56,7 @@ function invoiceHtml(
     ? `<div class="item-sub">Subscription · ${periodFrom} – ${periodTo}</div>`
     : `<div class="item-sub">Monthly subscription</div>`
 
-  const addrLines = company.address.replace(/,\s*/g, ',<br>').replace(/\n/g, '<br>')
+  const addrLines = company.address.replace(/\n/g, '<br>')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -104,7 +104,7 @@ function invoiceHtml(
 
     /* ── HEADER ── */
     .header {
-      background: linear-gradient(135deg, #1A1A0A 0%, #2D2400 40%, #3D1500 100%);
+      background: #000000;
       padding: 32px 40px;
       display: flex;
       align-items: center;
@@ -116,20 +116,9 @@ function invoiceHtml(
       flex-shrink: 0;
     }
     .header-logo img {
-      width: 64px; height: 64px;
+      width: 72px; height: 72px;
       border-radius: 12px;
       object-fit: contain;
-      background: rgba(255,255,255,0.1);
-      padding: 6px;
-    }
-    .header-logo-text {
-      color: #fff;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-top: 6px;
-      text-align: center;
     }
     .header-title {
       flex: 1;
@@ -395,7 +384,6 @@ function invoiceHtml(
     <div class="header">
       <div class="header-logo">
         <img src="/logo.png" alt="${company.name}" onerror="this.style.display='none'" />
-        <div class="header-logo-text">${company.name.toUpperCase()}</div>
       </div>
       <div class="header-title">INVOICE</div>
       <div class="header-right">
