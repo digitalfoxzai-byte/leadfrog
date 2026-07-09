@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, CreditCard, IndianRupee, Settings, LogOut,
   Eye, EyeOff, Save, Trash2, ShieldOff, ShieldCheck,
   CheckCircle, AlertCircle, Globe, Key, Mail, Lock, User, ChevronDown,
-  RefreshCw, Search, TrendingUp, Activity
+  RefreshCw, Search, TrendingUp, Activity, Download
 } from 'lucide-react'
 
 /* ── Types ── */
@@ -17,6 +17,7 @@ interface Invoice { id: number; plan: string; amount: number; status: string; cr
 interface Upcoming { id: number; name: string; email: string; plan: string; plan_expires_at: string; days_left: number }
 interface PayData { invoices: Invoice[]; upcoming: Upcoming[]; stats: { revenue: number; pending: number; upcomingCount: number; overdue: number } }
 interface AdminSettings { razorpay_key_id: string; razorpay_key_secret: string; razorpay_mode: string; starter_price: string; pro_price: string; business_price: string; starter_leads: string; pro_leads: string; business_leads: string }
+type InvoiceAction = { type: 'generating' | 'sending'; id: number } | null
 
 type Tab = 'overview' | 'users' | 'plans' | 'payments' | 'settings'
 
@@ -64,6 +65,7 @@ export default function AdminPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
+  const [invAction, setInvAction] = useState<InvoiceAction>(null)
 
   type PlanFeatMap = Record<string, Record<string, boolean>>
   const FEAT_LABELS: Record<string, string> = {
@@ -103,6 +105,32 @@ export default function AdminPage() {
     const d = await (await fetch('/api/admin/plan-features')).json()
     if (d && typeof d === 'object') setPlanFeats(d)
   }, [])
+
+  function invNum(id: number, createdAt: string) {
+    const d = new Date(createdAt)
+    return `INV-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${id}`
+  }
+
+  async function generateInvoice(userId: number, plan: string, amount: number) {
+    setInvAction({ type: 'generating', id: userId })
+    const r = await fetch('/api/admin/invoices/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, plan, amount }),
+    })
+    const d = await r.json()
+    setInvAction(null)
+    if (d.success) { flash(true, `Invoice ${d.invoiceNumber} created`); loadPayments() }
+    else flash(false, d.error || 'Failed to generate invoice')
+  }
+
+  async function sendInvoice(id: number) {
+    setInvAction({ type: 'sending', id })
+    const r = await fetch(`/api/admin/invoices/${id}`, { method: 'POST' })
+    const d = await r.json()
+    setInvAction(null)
+    if (d.success) flash(true, 'Invoice sent to client')
+    else flash(false, d.error || 'Failed to send invoice')
+  }
 
   async function toggleFeat(feature: string, plan: string, enabled: boolean) {
     setFeatSaving(true)
@@ -701,6 +729,7 @@ export default function AdminPage() {
                           <th className="px-6 py-3 text-left">Plan</th>
                           <th className="px-6 py-3 text-left">Billing Date</th>
                           <th className="px-6 py-3 text-left">Days Left</th>
+                          <th className="px-6 py-3 text-left">Invoice</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -724,6 +753,14 @@ export default function AdminPage() {
                                 {u.days_left} days
                               </span>
                             </td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() => generateInvoice(u.id, u.plan, Number(settings[`${u.plan}_price` as keyof AdminSettings]) || 499)}
+                                disabled={invAction?.type === 'generating' && invAction.id === u.id}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#A3E635]/10 border border-[#A3E635]/20 text-[#A3E635] text-xs font-semibold hover:bg-[#A3E635]/20 cursor-pointer transition-colors disabled:opacity-50">
+                                {invAction?.type === 'generating' && invAction.id === u.id ? 'Generating…' : '+ Generate'}
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -741,16 +778,22 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-[#0D160E] text-[10px] font-semibold text-[#4B6856] uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left">Invoice</th>
                           <th className="px-6 py-3 text-left">Client</th>
                           <th className="px-6 py-3 text-left">Plan</th>
                           <th className="px-6 py-3 text-left">Date</th>
                           <th className="px-6 py-3 text-left">Amount</th>
                           <th className="px-6 py-3 text-left">Status</th>
+                          <th className="px-6 py-3 text-left">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(payData.invoices as Invoice[]).map((inv, i) => (
                           <tr key={inv.id} className={`hover:bg-[#0D160E]/60 transition-colors ${i < (payData.invoices as Invoice[]).length - 1 ? 'border-b border-[#0D160E]' : ''}`}>
+                            <td className="px-6 py-4">
+                              <div className="text-[#A3E635] font-mono text-xs font-bold">{invNum(inv.id, inv.created_at)}</div>
+                              <div className="text-[10px] text-[#4B6856] mt-0.5">{new Date(inv.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                            </td>
                             <td className="px-6 py-4">
                               <div className="font-semibold text-white">{inv.user_name}</div>
                               <div className="text-xs text-[#4B6856]">{inv.user_email}</div>
@@ -763,7 +806,7 @@ export default function AdminPage() {
                             <td className="px-6 py-4 text-sm text-[#8FA896]">
                               {new Date(inv.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </td>
-                            <td className="px-6 py-4 text-white font-bold">₹{Math.round(inv.amount / 100).toLocaleString()}</td>
+                            <td className="px-6 py-4 text-white font-bold">₹{Math.round(inv.amount / 100).toLocaleString('en-IN')}</td>
                             <td className="px-6 py-4">
                               <span className={`flex items-center gap-1.5 text-xs font-semibold w-fit px-2.5 py-1 rounded-full
                                 ${inv.status === 'active' || inv.status === 'paid' ? 'bg-[#A3E635]/10 text-[#A3E635]'
@@ -772,6 +815,30 @@ export default function AdminPage() {
                                 <span className={`w-1.5 h-1.5 rounded-full ${inv.status === 'active' || inv.status === 'paid' ? 'bg-[#A3E635]' : inv.status === 'pending' ? 'bg-amber-400' : 'bg-red-400'}`} />
                                 {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
                               </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                {/* View */}
+                                <a href={`/api/admin/invoices/${inv.id}`} target="_blank" rel="noopener noreferrer"
+                                  title="View Invoice"
+                                  className="p-1.5 rounded-lg text-[#4B6856] hover:text-white hover:bg-[#122016] transition-colors cursor-pointer">
+                                  <Eye size={14} />
+                                </a>
+                                {/* Download (same page, print dialog) */}
+                                <a href={`/api/admin/invoices/${inv.id}`} target="_blank" rel="noopener noreferrer"
+                                  title="Download Invoice"
+                                  className="p-1.5 rounded-lg text-[#4B6856] hover:text-[#A3E635] hover:bg-[#122016] transition-colors cursor-pointer">
+                                  <Download size={14} />
+                                </a>
+                                {/* Send email */}
+                                <button onClick={() => sendInvoice(inv.id)} title="Send to Client"
+                                  disabled={invAction?.type === 'sending' && invAction.id === inv.id}
+                                  className="p-1.5 rounded-lg text-[#4B6856] hover:text-blue-400 hover:bg-[#122016] transition-colors cursor-pointer disabled:opacity-40">
+                                  {invAction?.type === 'sending' && invAction.id === inv.id
+                                    ? <RefreshCw size={14} className="animate-spin" />
+                                    : <Mail size={14} />}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
