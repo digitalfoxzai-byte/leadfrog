@@ -116,20 +116,22 @@ function invoiceHtml(
       flex-shrink: 0;
     }
     .header-logo img {
-      width: 72px; height: 72px;
+      width: 100px; height: 100px;
       border-radius: 12px;
       object-fit: contain;
     }
     .header-title {
-      flex: 1;
-      text-align: center;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       color: #fff;
       font-size: 32px;
       font-weight: 700;
       letter-spacing: 12px;
+      text-indent: 6px;
       text-transform: uppercase;
       white-space: nowrap;
-      margin-right: -12px;
     }
     .header-right {
       text-align: right;
@@ -179,16 +181,18 @@ function invoiceHtml(
       margin-bottom: 4px;
     }
     .summary-amount {
+      display: flex;
+      align-items: center;
+      gap: 5px;
       font-size: 40px;
       font-weight: 700;
       color: #1A1A2E;
       letter-spacing: -1px;
     }
     .summary-amount span.rupee {
-      font-size: 22px;
-      font-weight: 500;
-      vertical-align: super;
-      margin-right: 2px;
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1;
     }
     .status-pill {
       display: inline-flex;
