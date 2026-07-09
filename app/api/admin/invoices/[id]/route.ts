@@ -20,7 +20,7 @@ async function getCompanySettings() {
   }
 }
 
-export function invoiceNumber(id: number, createdAt: string) {
+function invoiceNumber(id: number, createdAt: string) {
   const d = new Date(createdAt)
   return `INV-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}-${id}`
 }
