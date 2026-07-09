@@ -38,8 +38,11 @@ function invoiceHtml(
     user_name: string; user_email: string
   },
   company: { name: string; email: string; phone: string; address: string },
-  baseHref?: string
+  baseHref?: string,
+  assets?: Record<string, string>
 ) {
+  const asset = (file: string, fallback: string) => assets?.[file] || fallback
+  const logoSrc = asset('logo.png', '/logo.png')
   const num   = invoiceNumber(inv.id, inv.created_at)
   const amt   = Math.round(inv.amount / 100)
   const fmtAmt = '₹' + amt.toLocaleString('en-IN')
@@ -69,22 +72,22 @@ function invoiceHtml(
   <style>
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-Regular.ttf') format('truetype');
+      src: url('${asset('BaiJamjuree-Regular.ttf', '/fonts/BaiJamjuree-Regular.ttf')}') format('truetype');
       font-weight: 400; font-style: normal; font-display: block;
     }
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-Medium.ttf') format('truetype');
+      src: url('${asset('BaiJamjuree-Medium.ttf', '/fonts/BaiJamjuree-Medium.ttf')}') format('truetype');
       font-weight: 500; font-style: normal; font-display: block;
     }
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-SemiBold.ttf') format('truetype');
+      src: url('${asset('BaiJamjuree-SemiBold.ttf', '/fonts/BaiJamjuree-SemiBold.ttf')}') format('truetype');
       font-weight: 600; font-style: normal; font-display: block;
     }
     @font-face {
       font-family: 'Bai Jamjuree';
-      src: url('/fonts/BaiJamjuree-Bold.ttf') format('truetype');
+      src: url('${asset('BaiJamjuree-Bold.ttf', '/fonts/BaiJamjuree-Bold.ttf')}') format('truetype');
       font-weight: 700; font-style: normal; font-display: block;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -386,7 +389,7 @@ function invoiceHtml(
     <!-- HEADER -->
     <div class="header">
       <div class="header-logo">
-        <img src="/logo.png" alt="${company.name}" onerror="this.style.display='none'" />
+        <img src="${logoSrc}" alt="${company.name}" onerror="this.style.display='none'" />
       </div>
       <div class="header-title">INVOICE</div>
       <div class="header-right">
@@ -464,7 +467,7 @@ function invoiceHtml(
         <div class="contact">Queries? Contact <a href="mailto:${company.email}">${company.email || 'support@leadfrog.in'}</a></div>
       </div>
       <div class="footer-right">
-        <img src="/logo.png" alt="${company.name}" onerror="this.style.display='none'" />
+        <img src="${logoSrc}" alt="${company.name}" onerror="this.style.display='none'" />
         <span class="co">${company.name}</span>
       </div>
     </div>
@@ -528,7 +531,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (execPath) {
       const proto = req.headers.get('x-forwarded-proto') || 'https'
       const host = req.headers.get('host') || 'localhost:3000'
-      const html = invoiceHtml(inv, company, `${proto}://${host}/`)
+
+      // Inline fonts and logo as data URIs so the headless render never
+      // depends on network fetches
+      const path = await import('path')
+      const pubDir = [path.join(process.cwd(), 'public'), '/var/www/leadfrog/public']
+        .find(d => fs.existsSync(path.join(d, 'fonts')))
+      const assets: Record<string, string> = {}
+      if (pubDir) {
+        for (const f of ['BaiJamjuree-Regular.ttf', 'BaiJamjuree-Medium.ttf', 'BaiJamjuree-SemiBold.ttf', 'BaiJamjuree-Bold.ttf']) {
+          const p = path.join(pubDir, 'fonts', f)
+          if (fs.existsSync(p)) assets[f] = `data:font/ttf;base64,${fs.readFileSync(p).toString('base64')}`
+        }
+        const logoPath = path.join(pubDir, 'logo.png')
+        if (fs.existsSync(logoPath)) assets['logo.png'] = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`
+      }
+
+      const html = invoiceHtml(inv, company, `${proto}://${host}/`, assets)
       const puppeteer = (await import('puppeteer-core')).default
       const browser = await puppeteer.launch({
         executablePath: execPath,
@@ -542,7 +561,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         pdfBuffer = Buffer.from(await page.pdf({
           format: 'A4',
           printBackground: true,
-          margin: { top: '10mm', bottom: '10mm', left: '0', right: '0' },
+          margin: { top: '0', bottom: '0', left: '0', right: '0' },
         }))
       } finally {
         await browser.close()
