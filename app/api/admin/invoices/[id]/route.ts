@@ -106,10 +106,10 @@ function invoiceHtml(
     .header {
       background: #000000;
       padding: 32px 40px;
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      gap: 24px;
-      position: relative;
+      gap: 16px;
       border-bottom: 3px solid #A3E635;
     }
     .header-logo {
@@ -121,22 +121,19 @@ function invoiceHtml(
       object-fit: contain;
     }
     .header-title {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
       color: #fff;
-      font-size: 32px;
+      font-size: 30px;
       font-weight: 700;
-      letter-spacing: 12px;
-      text-indent: 6px;
+      letter-spacing: 10px;
+      text-indent: 10px;
       text-transform: uppercase;
       white-space: nowrap;
+      text-align: center;
     }
     .header-right {
       text-align: right;
-      flex-shrink: 0;
-      min-width: 180px;
+      justify-self: end;
+      max-width: 220px;
     }
     .header-right .co-name {
       color: #fff;
