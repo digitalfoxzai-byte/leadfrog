@@ -17,7 +17,7 @@ interface Invoice { id: number; plan: string; amount: number; status: string; cr
 interface Upcoming { id: number; name: string; email: string; plan: string; plan_expires_at: string; days_left: number }
 interface PayData { invoices: Invoice[]; upcoming: Upcoming[]; stats: { revenue: number; pending: number; upcomingCount: number; overdue: number } }
 interface AdminSettings { razorpay_key_id: string; razorpay_key_secret: string; razorpay_mode: string; starter_price: string; pro_price: string; business_price: string; starter_leads: string; pro_leads: string; business_leads: string; company_name: string; company_phone: string; company_address: string; support_email: string }
-type InvoiceAction = { type: 'generating' | 'sending'; id: number } | null
+type InvoiceAction = { type: 'generating' | 'sending' | 'deleting'; id: number } | null
 
 type Tab = 'overview' | 'users' | 'plans' | 'payments' | 'settings'
 
@@ -130,6 +130,16 @@ export default function AdminPage() {
     setInvAction(null)
     if (d.success) flash(true, 'Invoice sent to client')
     else flash(false, d.error || 'Failed to send invoice')
+  }
+
+  async function deleteInvoice(id: number) {
+    if (!confirm('Delete this invoice? This cannot be undone.')) return
+    setInvAction({ type: 'deleting', id })
+    const r = await fetch(`/api/admin/invoices/${id}`, { method: 'DELETE' })
+    const d = await r.json()
+    setInvAction(null)
+    if (d.success) { flash(true, 'Invoice deleted'); loadPayments() }
+    else flash(false, d.error || 'Failed to delete invoice')
   }
 
   async function toggleFeat(feature: string, plan: string, enabled: boolean) {
@@ -840,6 +850,16 @@ export default function AdminPage() {
                                     ? <RefreshCw size={14} className="animate-spin" />
                                     : <Mail size={14} />}
                                 </button>
+                                {/* Delete (non-paid only) */}
+                                {inv.status !== 'active' && inv.status !== 'paid' && (
+                                  <button onClick={() => deleteInvoice(inv.id)} title="Delete Invoice"
+                                    disabled={invAction?.type === 'deleting' && invAction.id === inv.id}
+                                    className="p-1.5 rounded-lg text-[#4B6856] hover:text-red-400 hover:bg-[#122016] transition-colors cursor-pointer disabled:opacity-40">
+                                    {invAction?.type === 'deleting' && invAction.id === inv.id
+                                      ? <RefreshCw size={14} className="animate-spin" />
+                                      : <Trash2 size={14} />}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>

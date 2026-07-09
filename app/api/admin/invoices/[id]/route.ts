@@ -498,6 +498,22 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return new Response(invoiceHtml(rows[0], company), { headers: { 'Content-Type': 'text/html' } })
 }
 
+// DELETE — remove a non-paid invoice (pending/failed only)
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!await requireAdmin()) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const rows = await query<{ status: string }[]>(
+    'SELECT status FROM subscriptions WHERE id = ?', [params.id]
+  )
+  if (!rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (rows[0].status === 'active') {
+    return NextResponse.json({ error: 'Cannot delete a paid/active invoice' }, { status: 400 })
+  }
+
+  await query('DELETE FROM subscriptions WHERE id = ?', [params.id])
+  return NextResponse.json({ success: true })
+}
+
 // POST — send invoice email to client
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await requireAdmin()) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
