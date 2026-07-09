@@ -4,14 +4,14 @@ import { authOptions } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { createOtp } from '@/lib/otp'
 import { sendMail, emailTemplate } from '@/lib/mailer'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-  if (!rateLimit(`email-otp:${ip}`, 3, 60_000)) {
+  const ip = getClientIp(req)
+  if (!await rateLimit(`email-otp:${ip}`, 3, 60_000)) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
   }
 

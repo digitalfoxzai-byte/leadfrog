@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { createOtp } from '@/lib/otp'
 import { sendMail, emailTemplate, getSmtpSettings } from '@/lib/mailer'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    if (!rateLimit(`send-otp:${ip}`, 3, 60_000)) {
+    const ip = getClientIp(req)
+    if (!await rateLimit(`send-otp:${ip}`, 3, 60_000)) {
       return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
     }
 
@@ -21,9 +21,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipVerification: true })
     }
 
+    // If the email already has an account, don't reveal that (avoids account
+    // enumeration). Send a "you already have an account" notice and return the
+    // SAME response as the normal OTP path. No signup OTP is issued, so the
+    // address can never complete registration this way.
     const existing = await query<{ id: number }[]>('SELECT id FROM users WHERE email = ? LIMIT 1', [email])
     if (existing.length > 0) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
+      sendMail(
+        email,
+        `Your LeadFrog account`,
+        emailTemplate('You already have an account', `
+          <p style="color:#0F172A;font-size:15px;">Someone tried to sign up for LeadFrog with this email, but you already have an account.</p>
+          <p style="color:#475569;">If this was you, just <a href="https://leadfrog.digitalfoxz.com/login" style="color:#16A34A;font-weight:600;">log in</a> — or reset your password if you've forgotten it.</p>
+          <p style="color:#94A3B8;font-size:12px;">If this wasn't you, no action is needed. Your account is safe.</p>
+        `)
+      ).catch(() => {})
+      return NextResponse.json({ message: 'Verification code sent' })
     }
 
     const code = await createOtp(email, 'signup')

@@ -3,12 +3,12 @@ import bcrypt from 'bcryptjs'
 import { query } from '@/lib/db'
 import { verifyOtp } from '@/lib/otp'
 import { sendMail, sendAdminMail, emailTemplate, getSmtpSettings, escHtml } from '@/lib/mailer'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    if (!rateLimit(`register:${ip}`, 3, 60_000)) {
+    const ip = getClientIp(req)
+    if (!await rateLimit(`register:${ip}`, 3, 60_000)) {
       return NextResponse.json({ error: 'Too many attempts. Please wait a minute.' }, { status: 429 })
     }
 
@@ -27,12 +27,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be 8–128 characters' }, { status: 400 })
     }
 
-    const existing = await query<{ id: number }[]>('SELECT id FROM users WHERE email = ? LIMIT 1', [email])
-    if (existing.length > 0) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
-    }
-
-    // OTP verification — required when SMTP is configured
+    // OTP verification first — required when SMTP is configured. Because a
+    // signup OTP is only ever issued for a NON-registered email, verifying it
+    // before the duplicate check means the "already registered" path can't be
+    // used as an email-enumeration oracle.
     const smtpConfigured = (await getSmtpSettings()) !== null
     if (smtpConfigured) {
       if (!otp) {
@@ -42,6 +40,11 @@ export async function POST(req: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: 'Invalid or expired verification code' }, { status: 400 })
       }
+    }
+
+    const existing = await query<{ id: number }[]>('SELECT id FROM users WHERE email = ? LIMIT 1', [email])
+    if (existing.length > 0) {
+      return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
     }
 
     const hashed = await bcrypt.hash(password, 12)

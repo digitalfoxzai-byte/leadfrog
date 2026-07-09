@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { query } from '@/lib/db'
 import { verifyOtp } from '@/lib/otp'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    if (!rateLimit(`reset:${ip}`, 5, 60_000)) {
+    const ip = getClientIp(req)
+    if (!await rateLimit(`reset:${ip}`, 5, 60_000)) {
       return NextResponse.json({ error: 'Too many attempts. Please wait a minute.' }, { status: 429 })
     }
 
